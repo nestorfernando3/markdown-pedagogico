@@ -1,0 +1,114 @@
+# Markdown Pedagógico
+
+Editor de escritorio para escritura Markdown con **motor pedagógico basado en AST**, vista previa en vivo y exportación nativa a `.md` y `.pdf`.
+
+Construido con **React 19 + Tauri v1 + TypeScript + Tailwind CSS v4**.
+
+## Características
+
+### Motor Pedagógico en Tiempo Real
+
+- Análisis AST del documento mientras se escribe (via unified/remark).
+- Detección de **errores de sintaxis** Markdown con corrección automática (ej: `#Título` → `# Título`).
+- Advertencias de **estructura**: jerarquía de encabezados rota, párrafos excesivamente largos ("muros de texto").
+- Alertas de **pensamiento crítico**: afirmaciones absolutas, clichés retóricos.
+- Sistema de **onboarding** para escritores principiantes.
+- Overlay visual con indicadores por línea y tooltips contextuales con fix en un clic.
+
+### Editor
+
+- Vista dividida: escritura Markdown a la izquierda, renderizado HTML en vivo a la derecha.
+- Barra de formato contextual (bold, italic, encabezado, lista) al seleccionar texto.
+- **Modo Zen** para escritura sin distracciones.
+- **Panel de referencia** para texto e imágenes de comparación.
+- Autosave de borrador en `localStorage` con restauración automática.
+
+### Exportación
+
+- Guardar como `.md` vía comando nativo Rust.
+- Exportar a **PDF multipágina** con tipografía estilizada (html2canvas + jsPDF → bytes vía Rust).
+
+## Requisitos
+
+| Herramienta | Versión |
+|-------------|---------|
+| Node.js | `>=22 <23` |
+| npm | `>=10` |
+| Rust | Toolchain estable |
+| Tauri CLI | Incluido como devDependency |
+
+La versión de Node se valida automáticamente con `.nvmrc`, `engines` en `package.json` y un script `preinstall`.
+
+## Setup
+
+```bash
+# Instalar Node 22 (si es necesario)
+nvm install 22
+
+# Activar versión correcta
+nvm use
+
+# Instalar dependencias
+npm ci
+```
+
+### Sin nvm (Homebrew)
+
+```bash
+brew install node@22
+export PATH="$(brew --prefix node@22)/bin:$PATH"
+```
+
+## Desarrollo
+
+```bash
+# Modo recomendado (sin hot-reload del backend Rust)
+npm run tauri:dev
+
+# Con hot-reload del backend Rust (útil si editas main.rs)
+npm run tauri:dev:watch
+
+# Solo frontend Vite (sin ventana nativa)
+npm run dev
+```
+
+## Validación técnica
+
+```bash
+npm run check:node         # Validar versión de Node
+npx tsc --noEmit           # Type-check TypeScript
+cd src-tauri && cargo check # Compilación Rust
+```
+
+## Arquitectura
+
+```
+src/
+├── App.tsx                          # Root component
+├── index.css                        # Tailwind config + animaciones
+├── main.tsx                         # React entrypoint
+├── components/Editor/
+│   ├── Editor.tsx                   # Editor principal (escritura + vista previa)
+│   ├── PedagogicalOverlay.tsx       # Capa de indicadores visuales AST
+│   └── TooltipContextual.tsx        # Tooltip de formato y pedagogía
+└── utils/
+    └── markdownParser.ts            # Pipeline unified + reglas pedagógicas
+
+src-tauri/
+├── src/main.rs                      # Comandos Tauri (export_document, export_pdf_bytes)
+├── Cargo.toml                       # Dependencias Rust
+└── tauri.conf.json                  # Config ventana, permisos FS, CSP
+```
+
+## Notas de estabilidad
+
+- Autosave de borrador activo por defecto (debounce 180ms).
+- Recuperación automática de borrador al reabrir la app.
+- Overlay pedagógico virtualizado por warnings (no renderiza por cada línea del documento).
+- Pipeline PDF aísla estilos para evitar fallos de parseo con `oklch` (Tailwind v4).
+- Puerto Vite fijo (`5173`, `strictPort`) para evitar desincronización con Tauri.
+- `transparent: false` en ventana para evitar pantalla invisible en macOS.
+
+## Licencia
+
+MIT

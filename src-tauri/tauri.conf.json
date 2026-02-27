@@ -1,0 +1,54 @@
+{
+    "build": {
+        "beforeDevCommand": "npm run dev",
+        "beforeBuildCommand": "npm run build",
+        "devPath": "http://localhost:5173",
+        "distDir": "../dist"
+    },
+    "package": {
+        "productName": "Markdown Pedagógico",
+        "version": "1.0.0"
+    },
+    "tauri": {
+        "macOSPrivateApi": true,
+        "allowlist": {
+            "all": false,
+            "fs": {
+                "all": true,
+                "writeFile": true,
+                "readFile": true,
+                "scope": {
+                    "allow": [
+                        "**"
+                    ],
+                    "deny": []
+                }
+            },
+            "dialog": {
+                "all": true
+            }
+        },
+        "bundle": {
+            "active": true,
+            "category": "Education",
+            "copyright": "Markdown Pedagógico",
+            "identifier": "com.markdown-pedagogico.dev",
+            "targets": "all"
+        },
+        "security": {
+            "csp": "default-src 'self'; img-src 'self' data: blob: asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost; font-src 'self' data:",
+            "devCsp": "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: ws: http: https: ipc:;"
+        },
+        "windows": [
+            {
+                "fullscreen": false,
+                "height": 800,
+                "resizable": true,
+                "title": "Markdown Pedagógico - Editor",
+                "width": 1200,
+                "theme": "Light",
+                "transparent": false
+            }
+        ]
+    }
+}

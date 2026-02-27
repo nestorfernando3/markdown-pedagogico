@@ -1,0 +1,4 @@
+[build]
+# Workaround for intermittent "crate ... required to be available in rlib format"
+# errors seen in macOS dev builds with large dependency graphs.
+pipelining = false
