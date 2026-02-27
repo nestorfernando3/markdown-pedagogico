@@ -9,8 +9,14 @@
   "scripts": {
     "preinstall": "node ./scripts/check-node-version.mjs",
     "check:node": "node ./scripts/check-node-version.mjs",
+    "check:types": "npx tsc --noEmit",
+    "check:rust": "cd src-tauri && cargo check",
+    "check:tests": "npx vitest run",
+    "check:all": "npm run check:node && npm run check:types && npm run check:rust && npm run check:tests",
     "dev": "vite --port 5173 --strictPort",
     "build": "vite build",
+    "test": "vitest",
+    "test:run": "vitest run",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev --no-watch",
@@ -38,6 +44,8 @@
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.1",
     "@tauri-apps/cli": "^1.6.3",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
@@ -46,9 +54,11 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "jsdom": "^28.1.0",
     "tailwindcss": "^4.2.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
   }
 }

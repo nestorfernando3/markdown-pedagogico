@@ -76,9 +76,19 @@ npm run dev
 
 ```bash
 npm run check:node         # Validar versión de Node
-npx tsc --noEmit           # Type-check TypeScript
-cd src-tauri && cargo check # Compilación Rust
+npm run check:types        # Type-check TypeScript
+npm run check:rust         # Compilación Rust (Tauri)
+npm run check:tests        # Suite completa Vitest
+npm run check:all          # Ejecuta todos los gates locales
 ```
+
+### Quality Gates en CI
+
+En cada `pull_request` y en pushes a `main`/`develop` corre el workflow:
+
+- `.github/workflows/quality-gates.yml`
+- Job `js-quality`: `npm ci`, `check:node`, `check:types`, `check:tests`.
+- Job `tauri-rust-check`: `cargo check` en macOS.
 
 ## Arquitectura
 
@@ -88,11 +98,30 @@ src/
 ├── index.css                        # Tailwind config + animaciones
 ├── main.tsx                         # React entrypoint
 ├── components/Editor/
-│   ├── Editor.tsx                   # Editor principal (escritura + vista previa)
-│   ├── PedagogicalOverlay.tsx       # Capa de indicadores visuales AST
+│   ├── Editor.tsx                   # Orquestador principal
+│   ├── EditorWorkspace.tsx          # Shell UI editor + preview + tooltip
+│   ├── Toolbar.tsx                  # Barra superior de acciones
+│   ├── StatusBar.tsx                # Barra inferior de estado
+│   ├── ReferencePanel.tsx           # Referencia textual/visual
+│   ├── DiagnosticsPanel.tsx         # Panel de diagnóstico y métricas
+│   ├── PedagogicalOverlay.tsx       # Markers y resaltado por severidad
 │   └── TooltipContextual.tsx        # Tooltip de formato y pedagogía
+├── hooks/
+│   ├── useExportPdf.ts              # Exportación PDF
+│   ├── useFileOperations.ts         # Ciclo open/save/saveAs/isDirty
+│   ├── useKeyboardShortcuts.ts      # Atajos globales del editor
+│   ├── useTooltipState.ts           # Estado de tooltip
+│   └── editor/
+│       ├── useEditorDocument.ts     # Contenido, parse y métricas
+│       ├── useWarningSession.ts     # Ignorar, nuevas, pico de warnings
+│       └── useEditorInteractions.ts # Selección, formato y navegación
+├── test/
+│   ├── setup.ts                     # Setup Vitest
+│   └── fixtures/
+│       └── mediumMarkdown.ts        # Fixture documento mediano
 └── utils/
-    └── markdownParser.ts            # Pipeline unified + reglas pedagógicas
+    ├── markdownParser.ts            # Parse + render HTML sanitizado
+    └── pedagogicalRules.ts          # Motor de reglas pedagógicas
 
 src-tauri/
 ├── src/main.rs                      # Comandos Tauri (export_document, export_pdf_bytes)
@@ -106,6 +135,7 @@ src-tauri/
 - Recuperación automática de borrador al reabrir la app.
 - Overlay pedagógico virtualizado por warnings (no renderiza por cada línea del documento).
 - Pipeline PDF aísla estilos para evitar fallos de parseo con `oklch` (Tailwind v4).
+- Benchmark automatizado del parser: `p95(parseMarkdown) < 300ms` en documento mediano.
 - Puerto Vite fijo (`5173`, `strictPort`) para evitar desincronización con Tauri.
 - `transparent: false` en ventana para evitar pantalla invisible en macOS.
 
