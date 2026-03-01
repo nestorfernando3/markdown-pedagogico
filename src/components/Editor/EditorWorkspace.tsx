@@ -96,11 +96,16 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-        <section className="relative flex flex-col group" aria-label="Editor de Markdown">
-          <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">Escritura (Markdown)</label>
+        <section className="relative flex flex-col group" aria-labelledby="editor-section-title">
+          <h2 id="editor-section-title" className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">
+            Escritura (Markdown)
+          </h2>
 
           <div className="relative flex-1 bg-white/50 dark:bg-[#1a1c23]/40 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] backdrop-blur-xl border border-white/60 dark:border-white/5 focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all group-hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)] z-10 overflow-hidden">
-            <div className="absolute inset-y-0 left-0 w-14 border-r border-slate-200/60 dark:border-slate-700/60 bg-white/40 dark:bg-black/20 pointer-events-none z-20 overflow-hidden">
+            <div
+              aria-hidden="true"
+              className="absolute inset-y-0 left-0 w-14 border-r border-slate-200/60 dark:border-slate-700/60 bg-white/40 dark:bg-black/20 pointer-events-none z-20 overflow-hidden"
+            >
               <div style={{ transform: `translateY(-${editorScrollTop}px)` }} className="pt-8">
                 {lineNumbers.map((lineNumber) => (
                   <div
@@ -126,6 +131,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
               placeholder="Escribe tu idea aquí usando Markdown..."
               spellCheck={false}
               aria-label="Editor de contenido Markdown"
+              aria-labelledby="editor-section-title"
             />
 
             <PedagogicalOverlay
@@ -153,8 +159,10 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           />
         </section>
 
-        <section className="flex flex-col" aria-label="Vista previa renderizada">
-          <label className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">Vista Previa Real</label>
+        <section className="flex flex-col" aria-labelledby="preview-section-title">
+          <h2 id="preview-section-title" className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">
+            Vista Previa Real
+          </h2>
           <div className="flex-1 bg-white/50 dark:bg-black/10 rounded-3xl p-8 shadow-[0_4px_30px_rgba(0,0,0,0.02)] border border-slate-100 dark:border-slate-800/50 overflow-auto prose prose-slate dark:prose-invert prose-lg max-w-none backdrop-blur-sm transition-all selection:bg-indigo-100 dark:selection:bg-indigo-900">
             {content.trim() === '' ? (
               <p className="text-slate-400 italic font-light">

@@ -1,0 +1,210 @@
+# Plan de Mejora Integral — Markdown Pedagógico
+
+## Diagnóstico del Estado Actual
+
+El software hoy es un **editor de Markdown pedagógico** funcional (React + Tauri v1) con:
+
+| Área | Estado | Hallazgo clave |
+|------|--------|----------------|
+| Arquitectura | ⚠️ Deuda | `Editor.tsx` monolítico (561 líneas) concentra lógica de UI, estado, exportación PDF y referencia |
+| Motor pedagógico | 🟡 Básico | 4 reglas (afirmaciones absolutas, clichés retóricos, jerarquía de encabezados, muros de texto) + onboarding simple |
+| UX de escritura | 🔴 Limitado | Sin atajos de teclado, sin abrir archivos, sin numeración de líneas, sin syntax highlighting |
+| Exportación | 🟢 Funcional | PDF vía html2canvas (con workaround oklch), `.md` vía Rust |
+| Testing | 🔴 Inexistente | 0 archivos de test |
+| Accesibilidad | 🔴 Sin implementar | Sin ARIA roles, sin navegación por teclado para tooltips |
+| Limpieza | ⚠️ Menor | `App.css` contiene boilerplate de Vite sin usar |
+
+---
+
+## Fases de Mejora
+
+Las fases están ordenadas por **impacto pedagógico + estabilidad**. Cada fase es independiente e incrementalmente desplegable.
+
+---
+
+### Fase 1 · Refactorización Arquitectónica y Limpieza
+
+> **Objetivo**: Hacer el código mantenible y prepararlo para nuevas funciones sin cambiar comportamiento visible.
+
+#### [DELETE] [App.css](file:///Users/nestor/Documents/Desarrollo/Markdown%20editor/src/App.css)
+
+- Eliminar boilerplate de Vite (`.logo`, `.card`, `.read-the-docs`) que no se usa.
+
+#### [MODIFY] [App.tsx](file:///Users/nestor/Documents/Desarrollo/Markdown%20editor/src/App.tsx)
+
+- Eliminar `import './App.css'` (no existe en el archivo actual, pero confirmar).
+
+#### [MODIFY] [index.html](file:///Users/nestor/Documents/Desarrollo/Markdown%20editor/index.html)
+
+- Cambiar `<title>` de "vite-app" a "Markdown Pedagógico".
+- Añadir `lang="es"` al `<html>`.
+- Añadir `<meta name="description">`.
+
+#### [MODIFY] [Editor.tsx](file:///Users/nestor/Documents/Desarrollo/Markdown%20editor/src/components/Editor/Editor.tsx)
+
+- **Extraer** la lógica de exportación PDF a un nuevo hook `useExportPdf.ts`.
+- **Extraer** la lógica de guardado/apertura de archivos a un hook `useFileOperations.ts`.
+- **Extraer** el estado del tooltip a un hook `useTooltipState.ts`.
+- **Extraer** el panel de referencia a un componente `ReferencePanel.tsx`.
+- **Extraer** la barra de herramientas (header) a un componente `Toolbar.tsx`.
+- El `Editor.tsx` resultante debería tener ~120 líneas máximo, orquestando los hooks y componentes.
+
+#### [NEW] `src/hooks/useExportPdf.ts`
+
+#### [NEW] `src/hooks/useFileOperations.ts`  
+
+#### [NEW] `src/hooks/useTooltipState.ts`
+
+#### [NEW] `src/components/Editor/Toolbar.tsx`
+
+#### [NEW] `src/components/Editor/ReferencePanel.tsx`
+
+---
+
+### Fase 2 · UX de Escritura Profesional
+
+> **Objetivo**: Acercar la experiencia de escritura a editores de referencia (Typora, Obsidian, StackEdit).
+
+#### [MODIFY] [Editor.tsx](file:///Users/nestor/Documents/Desarrollo/Markdown%20editor/src/components/Editor/Editor.tsx)
+
+- **Atajos de teclado**: `Cmd/Ctrl+B` (bold), `Cmd/Ctrl+I` (italic), `Cmd/Ctrl+S` (guardar), `Cmd/Ctrl+Shift+E` (exportar PDF).
+- **Abrir archivo `.md`** existente desde disco (Tauri dialog + `readTextFile`).
+- **Numeración de líneas** en el gutter del textarea.
+- **Contadores en tiempo real**: palabras, caracteres, tiempo estimado de lectura (en el footer o barra de estado).
+- **Indicador de línea/columna** actual del cursor.
+- **Tab indentation**: Tab/Shift+Tab para indentar/desindentar líneas.
+
+#### [NEW] `src/hooks/useKeyboardShortcuts.ts`
+
+- Hook centralizado para registrar y documentar todos los atajos.
+
+#### [NEW] `src/components/Editor/StatusBar.tsx`
+
+- Barra inferior con: conteo de palabras, línea:columna, tiempo de lectura estimado.
+
+---
+
+### Fase 3 · Motor Pedagógico Avanzado
+
+> **Objetivo**: Transformar el análisis de 4 reglas en un sistema extensible con categorías y severidades, inspirado en Grammarly y Hemingway Editor.
+
+#### [MODIFY] [markdownParser.ts](file:///Users/nestor/Documents/Desarrollo/Markdown%20editor/src/utils/markdownParser.ts)
+
+- **Nuevas reglas de análisis** (cada una con fix sugerido cuando aplique):
+  - **Oraciones excesivamente largas** (>40 palabras): sugerir dividir.
+  - **Voz pasiva** detectada por patrones: sugerir reformulación activa.
+  - **Repetición léxica**: detectar palabras sustantivas repetidas en párrafos consecutivos.
+  - **Sin conclusión**: documento >500 palabras sin un encabezado de cierre (Conclusión, Resumen, etc.).
+  - **Listas huérfanas**: lista sin contexto introductorio (párrafo previo).
+  - **Encabezado huérfano**: encabezado seguido directamente de otro encabezado sin contenido intermedio.
+- **Severidades**: `info` | `warning` | `error` con colores distintos en el overlay.
+- **Categorías**: `structure`, `style`, `clarity`, `syntax` para poder filtrarlas.
+
+#### [MODIFY] [PedagogicalOverlay.tsx](file:///Users/nestor/Documents/Desarrollo/Markdown%20editor/src/components/Editor/PedagogicalOverlay.tsx)
+
+- Indicadores de color por severidad (azul=info, ámbar=warning, rojo=error).
+- Animación de pulso suave para errores nuevos vs. existentes.
+
+#### [MODIFY] [TooltipContextual.tsx](file:///Users/nestor/Documents/Desarrollo/Markdown%20editor/src/components/Editor/TooltipContextual.tsx)
+
+- Mostrar categoría y severidad en la cabecera del tooltip.
+- Botón "Ignorar" para descartar una advertencia de la sesión (sin fix, solo dismiss).
+
+#### [NEW] `src/utils/pedagogicalRules.ts`
+
+- Archivo independiente con todas las reglas como objetos configurables. Cada regla define: `id`, `category`, `severity`, `match(node, context)`, `message`, `fix?`.
+- Permite a futuro que el usuario active/desactive reglas.
+
+---
+
+### Fase 4 · Panel de Diagnóstico y Progreso
+
+> **Objetivo**: Dar al escritor una vista consolidada de la calidad de su documento, más allá de los markers individuales.
+
+#### [NEW] `src/components/Editor/DiagnosticsPanel.tsx`
+
+- Panel lateral o modal con:
+  - **Resumen visual**: donut chart o barra de progreso con % de advertencias resueltas.
+  - **Lista de advertencias** agrupadas por categoría, clickeables para saltar al punto del documento.
+  - **Puntuación de legibilidad** (índice Fernández-Huerta o similar para español).
+  - **Estadísticas**: distribución de encabezados, ratio de párrafo/lista, densidad de énfasis.
+
+#### [MODIFY] [Toolbar.tsx](file:///Users/nestor/Documents/Desarrollo/Markdown%20editor/src/components/Editor/Toolbar.tsx)
+
+- Botón para abrir/cerrar el panel de diagnóstico.
+
+---
+
+### Fase 5 · Accesibilidad y Pulido Visual
+
+> **Objetivo**: Cumplir WCAG 2.1 AA y elevar la experiencia visual.
+
+#### [MODIFY] [index.html](file:///Users/nestor/Documents/Desarrollo/Markdown%20editor/index.html)
+
+- Añadir `<html lang="es">`.
+
+#### [MODIFY] Componentes varios
+
+- Añadir `aria-label`, `role`, y `aria-live` en:
+  - Tooltips → `role="tooltip"`, `aria-describedby`.
+  - Indicadores del overlay → `aria-label` descriptivo.
+  - Botones de toolbar → tooltip accesible con `title`.
+  - Status bar → `aria-live="polite"` para cambios dinámicos.
+- **Navegación por teclado** en tooltips: `Escape` para cerrar, focus trap.
+- **Soporte de dark mode del sistema**: detectar `prefers-color-scheme` y aplicar automáticamente.
+
+#### [MODIFY] [index.css](file:///Users/nestor/Documents/Desarrollo/Markdown%20editor/src/index.css)
+
+- Añadir `@media (prefers-color-scheme: dark)` con fondo oscuro para `body` y `#root`, sincronizado con Tailwind `dark:`.
+- Transición suave al cambiar tema.
+
+---
+
+### Fase 6 · Testing Fundamental
+
+> **Objetivo**: Establecer una cobertura mínima de tests que proteja el motor pedagógico y la lógica de negocio.
+
+#### [NEW] `vitest.config.ts`
+
+- Configurar Vitest como runner de tests.
+
+#### [NEW] `src/utils/__tests__/markdownParser.test.ts`
+
+- Tests para cada regla pedagógica: input Markdown → warnings esperadas.
+- Tests de edge cases: documento vacío, solo espacios, markdown con 0 warnings.
+
+#### [NEW] `src/hooks/__tests__/useFileOperations.test.ts`
+
+- Tests de los hooks extraídos (mock de Tauri API).
+
+---
+
+## Priorización Recomendada
+
+```
+Fase 1 (Refactor)   ──► Fase 2 (UX Escritura)  ──► Fase 3 (Motor Pedagógico)
+                                                           │
+                                                           ▼
+                                        Fase 4 (Diagnóstico) ──► Fase 5 (A11y)
+                                                                       │
+                                                                       ▼
+                                                              Fase 6 (Testing)
+```
+
+> [!IMPORTANT]
+> **La Fase 1 es prerrequisito**: sin el refactor, añadir funcionalidad al `Editor.tsx` monolítico será frágil y difícil de mantener. Cada fase posterior asume que la anterior está terminada.
+
+## Verificación
+
+### Automatizada
+
+- Tras cada fase: `npx tsc --noEmit` debe pasar sin errores.
+- Tras cada fase: `cd src-tauri && cargo check` debe compilar.
+- Tras Fase 6: `npx vitest run` debe pasar todos los tests.
+
+### Manual (por el usuario)
+
+- Tras Fase 1: Validar que el editor funciona exactamente igual que antes (sin regresiones visuales ni de comportamiento).
+- Tras Fase 2: Probar atajos de teclado, abrir un archivo `.md` existente, verificar contadores.
+- Tras Fase 3: Escribir un texto de prueba con oraciones largas, voz pasiva y repeticiones; verificar que aparecen las nuevas advertencias.
+- Tras Fase 5: Navegar toda la interfaz solo con teclado (Tab, Enter, Escape).

@@ -1,0 +1,61 @@
+- generic [ref=e4]:
+  - banner [ref=e5]:
+    - heading "Markdown Pedagógico" [level=1] [ref=e6]
+    - toolbar "Acciones del editor" [ref=e7]:
+      - button "Abrir archivo Markdown" [ref=e8]: Abrir
+      - button "Guardar documento" [ref=e9]: Guardar
+      - button "Guardar como" [ref=e10]
+      - button "Exportar PDF" [ref=e11]
+      - button "Alternar modo zen" [ref=e12]: Modo Zen
+      - button "Alternar panel de referencia" [ref=e13]: Referencia
+      - button "Alternar panel de diagnóstico" [active] [ref=e14]: Diagnóstico
+      - generic "Conteo de problemas detectados" [ref=e15]: "Problemas: 0"
+  - main [ref=e16]:
+    - complementary "Panel de Referencia" [ref=e36]:
+      - heading "Panel de Referencia" [level=2] [ref=e37]
+      - paragraph [ref=e38]: Usa este espacio para comparar tu borrador con texto o imagenes de apoyo.
+      - textbox "Texto de referencia" [ref=e39]:
+        - /placeholder: Pega aquí un texto de referencia para compararlo mientras escribes...
+      - generic [ref=e40]:
+        - button "Cargar imagen de referencia" [ref=e41]: Cargar imagen
+        - button "Limpiar imagen de referencia" [disabled] [ref=e42]: Limpiar imagen
+      - generic [ref=e43]: Puedes cargar una imagen local para usarla como referencia visual.
+    - generic [ref=e17]:
+      - region "Escritura (Markdown)" [ref=e18]:
+        - heading "Escritura (Markdown)" [level=2] [ref=e19]
+        - generic [ref=e20]:
+          - generic:
+            - generic:
+              - generic: "1"
+          - textbox "Escritura (Markdown)" [ref=e21]:
+            - /placeholder: Escribe tu idea aquí usando Markdown...
+      - region "Vista Previa Real" [ref=e22]:
+        - heading "Vista Previa Real" [level=2] [ref=e23]
+        - paragraph [ref=e25]: Comienza a escribir a la izquierda y el documento se renderizará automáticamente.
+    - complementary "Diagnóstico" [ref=e44]:
+      - generic [ref=e45]:
+        - heading "Diagnóstico" [level=2] [ref=e46]
+        - generic [ref=e47]: "Ignoradas: 0"
+      - generic [ref=e48]:
+        - generic [ref=e49]: Progreso de resolución
+        - progressbar "Progreso de resolución" [ref=e51]
+        - generic [ref=e52]: "Resueltas: 0/0 (100%)"
+      - generic [ref=e53]:
+        - heading "Métricas" [level=3] [ref=e54]
+        - generic [ref=e55]: "Índice Fernández-Huerta: 100"
+        - generic [ref=e56]: "Encabezados: 0"
+        - generic [ref=e57]: "Párrafos/Listas (ratio): 0.00"
+        - generic [ref=e58]: "Densidad de énfasis: 0%"
+      - generic [ref=e59]:
+        - heading "Advertencias" [level=3] [ref=e60]
+        - paragraph [ref=e61]: No hay advertencias activas.
+  - contentinfo "Barra de estado del editor" [ref=e26]:
+    - generic "Metricas del documento" [ref=e27]:
+      - generic [ref=e28]: "Palabras: 0"
+      - generic [ref=e29]: "Caracteres: 0"
+      - generic [ref=e30]: "Lectura: 0 min"
+      - generic [ref=e31]: "Cursor: 1:1"
+    - generic "Estado del documento" [ref=e32]:
+      - generic [ref=e33]: "Alertas: 0"
+      - generic "Sin archivo" [ref=e34]: "Archivo: Sin archivo"
+      - status [ref=e35]: Guardado

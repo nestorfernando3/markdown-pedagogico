@@ -114,6 +114,13 @@ describe('Editor integration', () => {
     vi.unstubAllGlobals();
   });
 
+  it('does not expose the format tooltip before a text selection exists', () => {
+    render(<Editor />);
+
+    expect(screen.queryByText('Formato Markdown')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Texto' })).not.toBeInTheDocument();
+  });
+
   it('jumps to the expected selection when clicking a warning in diagnostics panel', async () => {
     render(<Editor />);
 
@@ -217,5 +224,106 @@ describe('Editor integration', () => {
     await waitFor(() => {
       expect(textarea.value).toBe('uno\ndos');
     });
+  });
+
+  it('applies ordered list from the extended contextual menu', async () => {
+    render(<Editor />);
+
+    const textarea = screen.getByLabelText('Editor de contenido Markdown') as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'uno\ndos' } });
+    await flushParserCycle();
+
+    textarea.focus();
+    textarea.setSelectionRange(0, textarea.value.length);
+    fireEvent.select(textarea, {
+      target: {
+        selectionStart: 0,
+        selectionEnd: textarea.value.length,
+      },
+    });
+
+    const listsMenuTrigger = await screen.findByRole('button', { name: 'Listas' });
+    fireEvent.click(listsMenuTrigger);
+
+    const orderedListButton = await screen.findByRole('menuitem', { name: 'Aplicar Lista ordenada' });
+    fireEvent.click(orderedListButton);
+
+    await waitFor(() => {
+      expect(textarea.value).toBe('\n1. uno\n2. dos\n');
+    });
+  });
+
+  it('applies advanced mermaid block from dropdown menu', async () => {
+    render(<Editor />);
+
+    const textarea = screen.getByLabelText('Editor de contenido Markdown') as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'x' } });
+    await flushParserCycle();
+
+    textarea.focus();
+    textarea.setSelectionRange(0, 1);
+    fireEvent.select(textarea, {
+      target: {
+        selectionStart: 0,
+        selectionEnd: 1,
+      },
+    });
+
+    const advancedMenuTrigger = await screen.findByRole('button', { name: 'Avanzado' });
+    fireEvent.click(advancedMenuTrigger);
+
+    const mermaidItem = await screen.findByRole('menuitem', { name: 'Aplicar Diagrama Mermaid' });
+    fireEvent.click(mermaidItem);
+
+    await waitFor(() => {
+      expect(textarea.value).toContain('```mermaid');
+      expect(textarea.value).toContain('graph TD');
+    });
+  });
+
+  it('supports keyboard navigation across format groups and menu items', async () => {
+    render(<Editor />);
+
+    const textarea = screen.getByLabelText('Editor de contenido Markdown') as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'texto de prueba' } });
+    await flushParserCycle();
+
+    textarea.focus();
+    textarea.setSelectionRange(0, textarea.value.length);
+    fireEvent.select(textarea, {
+      target: {
+        selectionStart: 0,
+        selectionEnd: textarea.value.length,
+      },
+    });
+
+    const textTrigger = await screen.findByRole('button', { name: 'Texto' });
+    expect(textTrigger).toHaveAttribute('aria-haspopup', 'menu');
+    textTrigger.focus();
+
+    fireEvent.keyDown(textTrigger, { key: 'ArrowRight' });
+
+    const titlesTrigger = screen.getByRole('button', { name: 'Titulos' });
+    expect(titlesTrigger).toHaveFocus();
+    expect(titlesTrigger).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.keyDown(titlesTrigger, { key: 'ArrowDown' });
+
+    await waitFor(() => {
+      expect(screen.getByRole('menuitem', { name: 'Aplicar Titulo H1' })).toHaveFocus();
+    });
+  });
+
+  it('exposes labeled landmarks and a single live status region', async () => {
+    render(<Editor />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Alternar panel de referencia' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Alternar panel de diagnóstico' }));
+
+    expect(screen.getByRole('main')).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Panel de Referencia' })).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: 'Diagnóstico' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Vista Previa Real' })).toBeInTheDocument();
+    expect(screen.getAllByRole('status')).toHaveLength(1);
   });
 });

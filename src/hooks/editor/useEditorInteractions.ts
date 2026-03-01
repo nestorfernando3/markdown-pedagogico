@@ -99,50 +99,259 @@ export function useEditorInteractions({
       const end = textarea.selectionEnd;
       const selectedText = content.slice(start, end);
 
+      const wrapInline = (leftToken: string, rightToken: string, placeholder: string) => {
+        if (selectedText.length === 0) {
+          return {
+            replacement: `${leftToken}${placeholder}${rightToken}`,
+            selectionStartAfter: start + leftToken.length,
+            selectionEndAfter: start + leftToken.length + placeholder.length,
+          };
+        }
+
+        return {
+          replacement: `${leftToken}${selectedText}${rightToken}`,
+          selectionStartAfter: start + leftToken.length,
+          selectionEndAfter: start + leftToken.length + selectedText.length,
+        };
+      };
+
+      const blockList = (
+        prefixBuilder: (line: string, index: number) => string,
+        fallbackText: string
+      ): { replacement: string; selectionStartAfter: number; selectionEndAfter: number } => {
+        const lines = (selectedText || fallbackText)
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0);
+
+        const safeLines = lines.length > 0 ? lines : [fallbackText];
+        const formatted = safeLines.map((line, index) => prefixBuilder(line, index)).join('\n');
+        const replacement = `\n${formatted}\n`;
+
+        return {
+          replacement,
+          selectionStartAfter: start + 1,
+          selectionEndAfter: start + replacement.length - 1,
+        };
+      };
+
       let replacement = selectedText;
       let selectionStartAfter = start;
       let selectionEndAfter = start;
 
       switch (action) {
         case 'bold': {
-          if (selectedText.length === 0) {
-            replacement = '**texto**';
-            selectionStartAfter = start + 2;
-            selectionEndAfter = start + 7;
-          } else {
-            replacement = `**${selectedText}**`;
-            selectionStartAfter = start + 2;
-            selectionEndAfter = start + 2 + selectedText.length;
-          }
+          ({ replacement, selectionStartAfter, selectionEndAfter } = wrapInline('**', '**', 'texto'));
           break;
         }
         case 'italic': {
-          if (selectedText.length === 0) {
-            replacement = '*texto*';
-            selectionStartAfter = start + 1;
-            selectionEndAfter = start + 6;
-          } else {
-            replacement = `*${selectedText}*`;
-            selectionStartAfter = start + 1;
-            selectionEndAfter = start + 1 + selectedText.length;
-          }
+          ({ replacement, selectionStartAfter, selectionEndAfter } = wrapInline('*', '*', 'texto'));
           break;
         }
-        case 'header': {
-          replacement = `\n# ${selectedText || 'Título'}\n`;
-          selectionStartAfter = start + 3;
-          selectionEndAfter = start + 3 + (selectedText.length || 'Título'.length);
+        case 'strikethrough': {
+          ({ replacement, selectionStartAfter, selectionEndAfter } = wrapInline('~~', '~~', 'texto'));
           break;
         }
-        case 'list': {
-          const lines = (selectedText || 'Ítem')
-            .split(/\r?\n/)
-            .map((line) => line.trim())
-            .filter((line) => line.length > 0);
+        case 'underline': {
+          ({ replacement, selectionStartAfter, selectionEndAfter } = wrapInline('<u>', '</u>', 'texto'));
+          break;
+        }
+        case 'highlight': {
+          ({ replacement, selectionStartAfter, selectionEndAfter } = wrapInline('==', '==', 'resaltado'));
+          break;
+        }
+        case 'inlineCode': {
+          ({ replacement, selectionStartAfter, selectionEndAfter } = wrapInline('`', '`', 'codigo'));
+          break;
+        }
+        case 'inlineMath': {
+          ({ replacement, selectionStartAfter, selectionEndAfter } = wrapInline('$', '$', 'x + y'));
+          break;
+        }
+        case 'superscript': {
+          ({ replacement, selectionStartAfter, selectionEndAfter } = wrapInline('^', '^', 'super'));
+          break;
+        }
+        case 'subscript': {
+          ({ replacement, selectionStartAfter, selectionEndAfter } = wrapInline('~', '~', 'sub'));
+          break;
+        }
+        case 'kbd': {
+          ({ replacement, selectionStartAfter, selectionEndAfter } = wrapInline('<kbd>', '</kbd>', 'Ctrl+S'));
+          break;
+        }
+        case 'link': {
+          const linkText = selectedText || 'texto';
+          const linkTarget = 'https://ejemplo.com';
+          replacement = `[${linkText}](${linkTarget})`;
+          selectionStartAfter = start + linkText.length + 3;
+          selectionEndAfter = selectionStartAfter + linkTarget.length;
+          break;
+        }
+        case 'linkReference': {
+          const referenceText = selectedText || 'texto';
+          const referenceId = 'ref';
+          const referenceUrl = 'https://ejemplo.com';
+          const prefix = `[${referenceText}][${referenceId}]\n\n[${referenceId}]: `;
 
-          replacement = `\n${lines.map((line) => (/^[-*+]\s+/.test(line) ? line : `- ${line}`)).join('\n')}\n`;
+          replacement = `${prefix}${referenceUrl}`;
+          selectionStartAfter = start + prefix.length;
+          selectionEndAfter = selectionStartAfter + referenceUrl.length;
+          break;
+        }
+        case 'image': {
+          const altText = selectedText || 'descripcion';
+          const imageTarget = 'https://ejemplo.com/imagen.png';
+          replacement = `![${altText}](${imageTarget})`;
+          selectionStartAfter = start + altText.length + 4;
+          selectionEndAfter = selectionStartAfter + imageTarget.length;
+          break;
+        }
+        case 'video': {
+          const videoTarget = 'https://ejemplo.com/video.mp4';
+          replacement = `<video controls src="${videoTarget}">\n  Tu navegador no soporta video.\n</video>`;
+          const offset = replacement.indexOf(videoTarget);
+          selectionStartAfter = start + offset;
+          selectionEndAfter = selectionStartAfter + videoTarget.length;
+          break;
+        }
+        case 'footnote': {
+          const noteText = selectedText || 'texto';
+          const noteDefinition = 'Nota al pie.';
+          const prefix = `${noteText}[^1]\n\n[^1]: `;
+
+          replacement = `${prefix}${noteDefinition}`;
+          selectionStartAfter = start + prefix.length;
+          selectionEndAfter = selectionStartAfter + noteDefinition.length;
+          break;
+        }
+        case 'h1':
+        case 'h2':
+        case 'h3':
+        case 'h4':
+        case 'h5':
+        case 'h6': {
+          const depth =
+            action === 'h1' ? 1 : action === 'h2' ? 2 : action === 'h3' ? 3 : action === 'h4' ? 4 : action === 'h5' ? 5 : 6;
+          const prefix = `${'#'.repeat(depth)} `;
+          const headingText = selectedText.trim() || 'Titulo';
+          replacement = `\n${prefix}${headingText}\n`;
+          selectionStartAfter = start + 1 + prefix.length;
+          selectionEndAfter = selectionStartAfter + headingText.length;
+          break;
+        }
+        case 'quote': {
+          ({ replacement, selectionStartAfter, selectionEndAfter } = blockList((line) => `> ${line}`, 'Cita'));
+          break;
+        }
+        case 'codeBlock': {
+          const blockContent = selectedText || 'codigo';
+          const opening = '\n```md\n';
+          const closing = '\n```\n';
+          replacement = `${opening}${blockContent}${closing}`;
+          selectionStartAfter = start + opening.length;
+          selectionEndAfter = selectionStartAfter + blockContent.length;
+          break;
+        }
+        case 'mathBlock': {
+          const mathContent = selectedText || 'E = mc^2';
+          const opening = '\n$$\n';
+          const closing = '\n$$\n';
+          replacement = `${opening}${mathContent}${closing}`;
+          selectionStartAfter = start + opening.length;
+          selectionEndAfter = selectionStartAfter + mathContent.length;
+          break;
+        }
+        case 'admonition': {
+          const noteContent = selectedText || 'Nota importante.';
+          const prefix = '\n> [!NOTE]\n> ';
+          replacement = `${prefix}${noteContent}\n`;
+          selectionStartAfter = start + prefix.length;
+          selectionEndAfter = selectionStartAfter + noteContent.length;
+          break;
+        }
+        case 'details': {
+          const summary = 'Detalle';
+          const detailContent = selectedText || 'Contenido adicional.';
+          const opening = `\n<details>\n<summary>${summary}</summary>\n\n`;
+          const closing = '\n\n</details>\n';
+          replacement = `${opening}${detailContent}${closing}`;
+          selectionStartAfter = start + opening.length;
+          selectionEndAfter = selectionStartAfter + detailContent.length;
+          break;
+        }
+        case 'unorderedList': {
+          ({ replacement, selectionStartAfter, selectionEndAfter } = blockList((line) => `- ${line}`, 'Item'));
+          break;
+        }
+        case 'orderedList': {
+          ({ replacement, selectionStartAfter, selectionEndAfter } = blockList((line, index) => `${index + 1}. ${line}`, 'Item'));
+          break;
+        }
+        case 'taskList': {
+          ({ replacement, selectionStartAfter, selectionEndAfter } = blockList((line) => `- [ ] ${line}`, 'Tarea'));
+          break;
+        }
+        case 'definitionList': {
+          const term = selectedText.trim() || 'Termino';
+          const definition = 'Definicion breve.';
+          replacement = `\n${term}\n: ${definition}\n`;
+          selectionStartAfter = start + 1 + term.length + 3;
+          selectionEndAfter = selectionStartAfter + definition.length;
+          break;
+        }
+        case 'table': {
+          replacement = '\n| Columna | Valor | Notas |\n| --- | --- | --- |\n| Dato 1 | Dato 2 | Dato 3 |\n';
           selectionStartAfter = start + 1;
           selectionEndAfter = start + replacement.length - 1;
+          break;
+        }
+        case 'toc': {
+          replacement = '\n## Contenido\n\n[TOC]\n';
+          selectionStartAfter = start + replacement.length;
+          selectionEndAfter = selectionStartAfter;
+          break;
+        }
+        case 'frontMatter': {
+          replacement = '---\ntitle: "Nuevo documento"\nauthor: "Autor"\ndate: "2026-02-27"\n---\n\n';
+          selectionStartAfter = start + replacement.length;
+          selectionEndAfter = selectionStartAfter;
+          break;
+        }
+        case 'pageBreak': {
+          replacement = '\n<div style="page-break-after: always;"></div>\n';
+          selectionStartAfter = start + replacement.length;
+          selectionEndAfter = selectionStartAfter;
+          break;
+        }
+        case 'emoji': {
+          replacement = ':sparkles:';
+          selectionStartAfter = start + replacement.length;
+          selectionEndAfter = selectionStartAfter;
+          break;
+        }
+        case 'htmlComment': {
+          const comment = 'comentario';
+          const opening = '\n<!-- ';
+          const closing = ' -->\n';
+          replacement = `${opening}${comment}${closing}`;
+          selectionStartAfter = start + opening.length;
+          selectionEndAfter = selectionStartAfter + comment.length;
+          break;
+        }
+        case 'mermaid': {
+          const diagram = 'graph TD\n  A[Inicio] --> B[Fin]';
+          const opening = '\n```mermaid\n';
+          const closing = '\n```\n';
+          replacement = `${opening}${diagram}${closing}`;
+          selectionStartAfter = start + opening.length;
+          selectionEndAfter = selectionStartAfter + diagram.length;
+          break;
+        }
+        case 'horizontalRule': {
+          replacement = '\n\n---\n\n';
+          selectionStartAfter = start + replacement.length;
+          selectionEndAfter = selectionStartAfter;
           break;
         }
       }
@@ -319,11 +528,22 @@ export function useEditorInteractions({
 
   const handleEditorClick = useCallback(
     (selectionStart: number, selectionEnd: number) => {
-      if (tooltipState.visible && selectionStart === selectionEnd) {
+      const textarea = editorRef.current;
+      if (!textarea) {
+        return;
+      }
+
+      const hasSelection = selectionStart !== selectionEnd;
+      if (hasSelection && !(tooltipState.visible && tooltipState.type === 'pedagogy')) {
+        showFormatTooltip(textarea.getBoundingClientRect());
+        return;
+      }
+
+      if (tooltipState.visible && !hasSelection) {
         hideTooltip();
       }
     },
-    [hideTooltip, tooltipState.visible]
+    [editorRef, hideTooltip, showFormatTooltip, tooltipState.type, tooltipState.visible]
   );
 
   return {

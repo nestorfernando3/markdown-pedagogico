@@ -78,6 +78,7 @@ npm run dev
 npm run check:node         # Validar versión de Node
 npm run check:types        # Type-check TypeScript
 npm run check:rust         # Compilación Rust (Tauri)
+npm run check:a11y         # Auditoría automatizada axe-core del Editor
 npm run check:tests        # Suite completa Vitest
 npm run check:all          # Ejecuta todos los gates locales
 ```
@@ -89,6 +90,7 @@ En cada `pull_request` y en pushes a `main`/`develop` corre el workflow:
 - `.github/workflows/quality-gates.yml`
 - Job `js-quality`: `npm ci`, `check:node`, `check:types`, `check:tests`.
 - Job `tauri-rust-check`: `cargo check` en macOS.
+- La auditoría `axe-core` corre dentro de `check:tests` y también se puede ejecutar de forma aislada con `check:a11y`.
 
 ## Arquitectura
 
@@ -136,6 +138,7 @@ src-tauri/
 - Overlay pedagógico virtualizado por warnings (no renderiza por cada línea del documento).
 - Pipeline PDF aísla estilos para evitar fallos de parseo con `oklch` (Tailwind v4).
 - Benchmark automatizado del parser: `p95(parseMarkdown) < 300ms` en documento mediano.
+- Gate automatizado de accesibilidad con `axe-core` sobre shell principal, paneles y tooltips del editor.
 - Puerto Vite fijo (`5173`, `strictPort`) para evitar desincronización con Tauri.
 - `transparent: false` en ventana para evitar pantalla invisible en macOS.
 

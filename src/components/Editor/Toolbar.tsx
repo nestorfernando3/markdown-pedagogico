@@ -161,7 +161,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           Diagnóstico
         </button>
 
-        <div className="text-sm text-slate-500 dark:text-slate-300" aria-live="polite">
+        <div className="text-sm text-slate-500 dark:text-slate-300" aria-label="Conteo de problemas detectados">
           Problemas: {warningCount}
         </div>
       </div>

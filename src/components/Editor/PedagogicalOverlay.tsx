@@ -63,13 +63,13 @@ export const PedagogicalOverlay: React.FC<PedagogicalOverlayProps> = ({
           return (
             <div key={warning.id} className="absolute left-0 right-0" style={{ top }}>
               <div
+                aria-hidden="true"
                 className={`h-7 rounded-md border-b-2 border-transparent transition-colors pointer-events-none ${HIGHLIGHT_CLASS[warning.severity]}`}
               />
 
               <button
                 type="button"
                 id={markerId}
-                role="button"
                 className={`absolute -left-10 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white/80 dark:bg-[#1a1c23]/95 border backdrop-blur-md shadow-[0_2px_15px_rgba(99,102,241,0.35)] flex items-center justify-center pointer-events-auto group cursor-pointer transition-all hover:scale-125 ${
                   BORDER_CLASS[warning.severity]
                 } ${isZenMode ? 'opacity-0 hover:opacity-100 focus:opacity-100' : ''} ${isNewError ? 'animate-pulse' : ''}`}
@@ -83,7 +83,7 @@ export const PedagogicalOverlay: React.FC<PedagogicalOverlayProps> = ({
                 aria-label={`Advertencia ${warning.severity} en línea ${warning.line}: ${warning.message}`}
                 title={`Línea ${warning.line}: ${warning.message}`}
               >
-                <div className={`w-2 h-2 rounded-full transition-colors ${DOT_CLASS[warning.severity]}`} />
+                <div aria-hidden="true" className={`w-2 h-2 rounded-full transition-colors ${DOT_CLASS[warning.severity]}`} />
               </button>
             </div>
           );
