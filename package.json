@@ -1,7 +1,28 @@
 {
-  "name": "vite-app",
+  "name": "markdown-pedagogico",
   "private": true,
   "version": "0.0.0",
+  "description": "Editor de escritorio open source para Markdown con motor pedagógico basado en AST, vista previa y exportación PDF.",
+  "license": "MIT",
+  "author": "Nestor Fernando De Leon Llanos",
+  "homepage": "https://github.com/nestorfernando3/markdown-pedagogico",
+  "bugs": {
+    "url": "https://github.com/nestorfernando3/markdown-pedagogico/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nestorfernando3/markdown-pedagogico.git"
+  },
+  "keywords": [
+    "markdown",
+    "editor",
+    "education",
+    "pedagogy",
+    "tauri",
+    "react",
+    "typescript",
+    "desktop-app"
+  ],
   "type": "module",
   "engines": {
     "node": ">=22 <23"

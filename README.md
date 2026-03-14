@@ -4,6 +4,14 @@ Editor de escritorio para escritura Markdown con **motor pedagógico basado en A
 
 Construido con **React 19 + Tauri v1 + TypeScript + Tailwind CSS v4**.
 
+## Open Source de un vistazo
+
+- **Licencia:** MIT
+- **Estado:** mantenimiento activo
+- **Tipo de proyecto:** editor de escritorio open source para escritura asistida y feedback pedagógico
+- **Señales públicas:** suite de tests, chequeos de accesibilidad, quality gates en CI y documentación técnica
+- **Cómo contribuir:** revisa [CONTRIBUTING.md](./CONTRIBUTING.md), [SUPPORT.md](./SUPPORT.md) y [SECURITY.md](./SECURITY.md)
+
 ## Características
 
 ### Motor Pedagógico en Tiempo Real
@@ -142,6 +150,13 @@ src-tauri/
 - Puerto Vite fijo (`5173`, `strictPort`) para evitar desincronización con Tauri.
 - `transparent: false` en ventana para evitar pantalla invisible en macOS.
 
+## Comunidad
+
+- **Issues:** reportes de bugs, propuestas de mejora pedagógica y problemas de rendimiento son bienvenidos.
+- **Pull requests:** mejoras en UX, reglas pedagógicas, testing, accesibilidad y exportación PDF tienen especial prioridad.
+- **Preguntas de uso o adopción:** consulta [SUPPORT.md](./SUPPORT.md).
+- **Seguridad:** reporta hallazgos de seguridad con discreción siguiendo [SECURITY.md](./SECURITY.md).
+
 ## Licencia
 
-MIT
+[MIT](./LICENSE)
