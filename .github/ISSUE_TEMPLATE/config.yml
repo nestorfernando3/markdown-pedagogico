@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Soporte de Markdown Pedagogico
+    url: https://github.com/nestorfernando3/markdown-pedagogico/blob/main/SUPPORT.md
+    about: Consulta la guia de soporte antes de abrir preguntas de uso o instalacion.
