@@ -22,7 +22,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - La exportación nativa de Tauri prioriza impresión HTML a PDF con texto real y deja el fallback rasterizado sólo para navegador.
 - El flujo de abrir, guardar y exportar ahora tiene fallback web coherente cuando la app no corre dentro de Tauri.
 - La preview, la exportación y el diagnóstico comparten mejor el mismo estado actual del documento para evitar desfases.
-- El tooltip pedagógico ahora puede aplicar correcciones seguras directamente para algunas reglas de `remark-lint`, como salto de línea final y espacios sobrantes al final de línea.
+- El tooltip pedagógico ahora puede aplicar correcciones seguras directamente para algunas reglas de `remark-lint`, como salto de línea final, espacios sobrantes al final de línea, listas y blockquotes.
 
 ### Corregido
 

@@ -127,6 +127,39 @@ function inferLintSeverity(message: VFileMessage): PedagogicalSeverity {
   return 'warning';
 }
 
+function getCurrentLineBounds(text: string, offset: number): { lineStart: number; lineEnd: number; lineText: string } {
+  const lineStart = text.lastIndexOf('\n', Math.max(0, offset - 1)) + 1;
+  const nextBreak = text.indexOf('\n', offset);
+  const lineEnd = nextBreak === -1 ? text.length : nextBreak;
+
+  return {
+    lineStart,
+    lineEnd,
+    lineText: text.slice(lineStart, lineEnd),
+  };
+}
+
+function lineReplacement(
+  lineStart: number,
+  lineEnd: number,
+  currentText: string,
+  nextText: string,
+  suggestion: string
+): Pick<PedagogicalWarning, 'suggestion' | 'replacementConfig'> {
+  if (currentText === nextText) {
+    return {};
+  }
+
+  return {
+    suggestion,
+    replacementConfig: {
+      startOffset: lineStart,
+      endOffset: lineEnd,
+      newText: nextText,
+    },
+  };
+}
+
 function deriveLintSuggestion(
   text: string,
   ruleId: string,
@@ -151,22 +184,64 @@ function deriveLintSuggestion(
     ruleId === 'no-trailing-spaces' ||
     /trailing spaces?/u.test(message.reason)
   ) {
-    const lineStart = text.lastIndexOf('\n', Math.max(0, startOffset - 1)) + 1;
-    const nextBreak = text.indexOf('\n', startOffset);
-    const lineEnd = nextBreak === -1 ? text.length : nextBreak;
-    const lineText = text.slice(lineStart, lineEnd);
+    const { lineStart, lineEnd, lineText } = getCurrentLineBounds(text, startOffset);
     const trimmedLine = lineText.replace(/[ \t]+$/u, '');
 
-    if (trimmedLine !== lineText) {
-      return {
-        suggestion: 'Elimina los espacios sobrantes al final de la línea.',
-        replacementConfig: {
-          startOffset: lineStart,
-          endOffset: lineEnd,
-          newText: trimmedLine,
-        },
-      };
-    }
+    return lineReplacement(
+      lineStart,
+      lineEnd,
+      lineText,
+      trimmedLine,
+      'Elimina los espacios sobrantes al final de la línea.'
+    );
+  }
+
+  if (
+    ruleId === 'list-item-indent' ||
+    /expected `1` space after list marker/u.test(message.reason)
+  ) {
+    const { lineStart, lineEnd, lineText } = getCurrentLineBounds(text, startOffset);
+    const normalizedLine = lineText.replace(/^(\s*(?:[-+*]|\d+[.)]))[ \t]+/u, '$1 ');
+
+    return lineReplacement(
+      lineStart,
+      lineEnd,
+      lineText,
+      normalizedLine,
+      'Usa un solo espacio después del marcador de lista.'
+    );
+  }
+
+  if (
+    ruleId === 'no-heading-content-indent' ||
+    /remove indentation between `#` and heading content/u.test(message.reason)
+  ) {
+    const { lineStart, lineEnd, lineText } = getCurrentLineBounds(text, startOffset);
+    const normalizedLine = lineText.replace(/^(#{1,6})[ \t]+/u, '$1 ');
+
+    return lineReplacement(
+      lineStart,
+      lineEnd,
+      lineText,
+      normalizedLine,
+      'Deja un solo espacio entre el marcador `#` y el título.'
+    );
+  }
+
+  if (
+    ruleId === 'ordered-list-marker-style' ||
+    /expected `\\.` as marker/u.test(message.reason)
+  ) {
+    const { lineStart, lineEnd, lineText } = getCurrentLineBounds(text, startOffset);
+    const normalizedLine = lineText.replace(/^(\s*\d+)\)([ \t]+)/u, '$1.$2');
+
+    return lineReplacement(
+      lineStart,
+      lineEnd,
+      lineText,
+      normalizedLine,
+      'Usa `.` como marcador en listas ordenadas.'
+    );
   }
 
   return {};

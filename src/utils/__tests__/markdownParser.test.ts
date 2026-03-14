@@ -333,6 +333,63 @@ graph TD
     });
   });
 
+  it('adds an applicable correction for list item spacing warnings', async () => {
+    const markdown = `# Titulo
+
+-  item`;
+
+    const result = await parseMarkdown(markdown);
+    const warning = result.warnings.find((entry) => entry.ruleId === 'list-item-indent');
+
+    expect(warning).toMatchObject({
+      source: 'remark-lint',
+      suggestion: 'Usa un solo espacio después del marcador de lista.',
+    });
+    expect(warning?.replacementConfig).toEqual({
+      startOffset: markdown.lastIndexOf('-  item'),
+      endOffset: markdown.length,
+      newText: '- item',
+    });
+  });
+
+  it('adds an applicable correction for heading content indentation warnings', async () => {
+    const markdown = `# Titulo
+
+##  Subtitulo`;
+
+    const result = await parseMarkdown(markdown);
+    const warning = result.warnings.find((entry) => entry.ruleId === 'no-heading-content-indent');
+
+    expect(warning).toMatchObject({
+      source: 'remark-lint',
+      suggestion: 'Deja un solo espacio entre el marcador `#` y el título.',
+    });
+    expect(warning?.replacementConfig).toEqual({
+      startOffset: markdown.lastIndexOf('##  Subtitulo'),
+      endOffset: markdown.length,
+      newText: '## Subtitulo',
+    });
+  });
+
+  it('adds an applicable correction for ordered list marker style warnings', async () => {
+    const markdown = `# Titulo
+
+1) Primer paso`;
+
+    const result = await parseMarkdown(markdown);
+    const warning = result.warnings.find((entry) => entry.ruleId === 'ordered-list-marker-style');
+
+    expect(warning).toMatchObject({
+      source: 'remark-lint',
+      suggestion: 'Usa `.` como marcador en listas ordenadas.',
+    });
+    expect(warning?.replacementConfig).toEqual({
+      startOffset: markdown.lastIndexOf('1) Primer paso'),
+      endOffset: markdown.length,
+      newText: '1. Primer paso',
+    });
+  });
+
   it('surfaces nspell warnings with replacement suggestions', async () => {
     const markdown = `# Documento
 
