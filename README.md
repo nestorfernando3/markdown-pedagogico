@@ -28,6 +28,9 @@ Construido con **React 19 + Tauri v1 + TypeScript + Tailwind CSS v4**.
 - Vista dividida: escritura Markdown a la izquierda, renderizado HTML en vivo a la derecha.
 - Barra de formato contextual (bold, italic, encabezado, lista) al seleccionar texto.
 - `Training mode` adaptativo con coach flotante para aprender Markdown paso a paso.
+- El coach de training usa las mismas señales derivadas del documento actual que alimentan preview y diagnóstico.
+- Los ejemplos del training se insertan como snippets guiados y no reutilizan la selección previa del usuario.
+- El paso de exportación del training sólo se completa tras una exportación PDF hecha con el training activo.
 - **Modo Zen** para escritura sin distracciones.
 - **Panel de referencia** para texto e imágenes de comparación.
 - Autosave de borrador en `localStorage` con restauración automática.
@@ -150,6 +153,8 @@ src-tauri/
 - Overlay pedagógico virtualizado por warnings (no renderiza por cada línea del documento).
 - Pipeline PDF genera HTML fresco desde el Markdown actual antes de exportar.
 - Exportación nativa usa impresión HTML en Tauri; el modo rasterizado queda como compatibilidad web.
+- El training comparte una única fuente de verdad con el editor para evitar desfases entre coach, preview y diagnóstico.
+- La detección del primer párrafo del training se limita al cuerpo principal del documento, no a contenido anidado como citas.
 - Benchmark automatizado del parser: `p95(parseMarkdown) < 400ms` en documento mediano.
 - Gate automatizado de accesibilidad con `axe-core` sobre shell principal, paneles y tooltips del editor.
 - Puerto Vite fijo (`5173`, `strictPort`) para evitar desincronización con Tauri.
