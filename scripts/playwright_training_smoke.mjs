@@ -10,6 +10,8 @@ const PDF_PATH = path.resolve('output/pdf/training-smoke.pdf');
 
 const SAMPLE_MARKDOWN = `# Documento guiado
 
+## Resumen
+
 Este párrafo **explica** el objetivo del documento y enlaza a [OpenAI](https://openai.com).
 
 - primer punto
@@ -47,7 +49,10 @@ async function main() {
   await page.goto(APP_URL, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /Activar training mode/i }).click();
   await page.getByRole('textbox', { name: 'Escritura (Markdown)' }).fill(SAMPLE_MARKDOWN);
-  await page.getByRole('heading', { name: 'Exporta tu documento' }).waitFor();
+  await page.getByRole('button', { name: /Alternar panel de diagnóstico/i }).click();
+  await page.getByRole('dialog', { name: 'Diagnóstico' }).waitFor();
+  await page.getByRole('button', { name: /Advertencia warning en línea/i }).first().click();
+  await page.getByRole('button', { name: 'Aplicar corrección' }).waitFor();
   await page.screenshot({ path: SCREENSHOT_PATH, fullPage: true });
 
   const [download] = await Promise.all([

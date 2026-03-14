@@ -142,17 +142,25 @@ export const Editor: React.FC = () => {
 
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || !tooltipState.visible) {
+      if (event.key !== 'Escape') {
         return;
       }
 
-      event.preventDefault();
-      handleTooltipClose();
+      if (tooltipState.visible) {
+        event.preventDefault();
+        handleTooltipClose();
+        return;
+      }
+
+      if (showDiagnosticsPanel) {
+        event.preventDefault();
+        setShowDiagnosticsPanel(false);
+      }
     };
 
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [handleTooltipClose, tooltipState.visible]);
+  }, [handleTooltipClose, showDiagnosticsPanel, tooltipState.visible]);
 
   const handleSave = () => {
     void saveMarkdown(content);
@@ -254,6 +262,7 @@ export const Editor: React.FC = () => {
         onFixAction={handleApplyFix}
         onIgnoreWarning={handleIgnoreWarning}
         onTooltipClose={handleTooltipClose}
+        onCloseDiagnosticsPanel={() => setShowDiagnosticsPanel(false)}
         trainingState={{
           ...trainingState,
           signals: trainingSignals,

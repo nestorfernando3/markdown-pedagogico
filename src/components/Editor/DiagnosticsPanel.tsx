@@ -14,6 +14,7 @@ interface DiagnosticsPanelProps {
   content: string;
   snapshot: DiagnosticSnapshot;
   onJumpToWarning: (warning: PedagogicalWarning) => void;
+  className?: string;
 }
 
 const CATEGORY_LABEL: Record<PedagogicalCategory, string> = {
@@ -37,6 +38,7 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
   content,
   snapshot,
   onJumpToWarning,
+  className,
 }) => {
   const words = countDocumentWords(content);
   const readability = estimateFernandezHuerta(content);
@@ -67,53 +69,79 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
   const emphasisDensity = words === 0 ? 0 : Number(((snapshot.emphasisCount / words) * 100).toFixed(2));
 
   return (
-    <aside
-      aria-labelledby="diagnostics-panel-title"
-      className="bg-white/50 dark:bg-[#1a1c23]/40 rounded-3xl p-6 shadow-[0_8px_32px_rgba(0,0,0,0.04)] border border-white/60 dark:border-white/5 backdrop-blur-xl min-h-[70vh] overflow-auto"
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h2 id="diagnostics-panel-title" className="text-sm font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-300">
-          Diagnóstico
-        </h2>
-        <span className="text-xs text-slate-500 dark:text-slate-300">Ignoradas: {ignoredCount}</span>
+    <div className={className}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 id="diagnostics-panel-title" className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">
+            Diagnóstico
+          </h2>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Prioriza qué conviene corregir primero.</p>
+        </div>
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:bg-white/8 dark:text-slate-300">
+          Ignoradas: {ignoredCount}
+        </span>
       </div>
 
-      <section className="mb-6">
-        <div className="text-xs text-slate-500 dark:text-slate-300 mb-1">Progreso de resolución</div>
-        <div className="h-2 bg-slate-200/80 dark:bg-slate-700/60 rounded-full overflow-hidden">
+      <section className="mt-5 rounded-2xl border border-slate-200/80 bg-white/78 p-4 dark:border-white/8 dark:bg-white/4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">Progreso de resolución</div>
+            <div className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-100">
+              {resolution.resolved}/{peakWarningCount} alertas resueltas
+            </div>
+          </div>
+          <div className="text-lg font-semibold text-slate-900 dark:text-slate-50">{resolution.percent}%</div>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-800">
           <div
             role="progressbar"
             aria-label="Progreso de resolución"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={resolution.percent}
-            className="h-full bg-emerald-500 transition-all"
+            className="h-full rounded-full bg-emerald-500 transition-all"
             style={{ width: `${resolution.percent}%` }}
           />
         </div>
-        <div className="mt-2 text-xs text-slate-600 dark:text-slate-300">
-          Resueltas: {resolution.resolved}/{peakWarningCount} ({resolution.percent}%)
+      </section>
+
+      <section className="mt-4 grid grid-cols-2 gap-3 text-sm text-slate-700 dark:text-slate-200">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/78 p-3 dark:border-white/8 dark:bg-white/4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">Lectura</div>
+          <div className="mt-1 text-[13px] font-medium leading-5">Índice Fernández-Huerta: {readability}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white/78 p-3 dark:border-white/8 dark:bg-white/4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">Estructura</div>
+          <div className="mt-1 text-[13px] font-medium leading-5">Encabezados: {snapshot.headingCount}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white/78 p-3 dark:border-white/8 dark:bg-white/4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">Ritmo</div>
+          <div className="mt-1 text-[13px] font-medium leading-5">Párrafos/Listas: {paragraphListRatio.toFixed(2)}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white/78 p-3 dark:border-white/8 dark:bg-white/4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">Énfasis</div>
+          <div className="mt-1 text-[13px] font-medium leading-5">Densidad: {emphasisDensity}%</div>
         </div>
       </section>
 
-      <section className="mb-6 text-sm text-slate-700 dark:text-slate-200 space-y-1">
-        <h3 className="text-xs uppercase tracking-widest text-slate-500 dark:text-slate-300 mb-2">Métricas</h3>
-        <div>Índice Fernández-Huerta: {readability}</div>
-        <div>Encabezados: {snapshot.headingCount}</div>
-        <div>Párrafos/Listas (ratio): {paragraphListRatio.toFixed(2)}</div>
-        <div>Densidad de énfasis: {emphasisDensity}%</div>
-      </section>
+      <section className="mt-5">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">Alertas activas</h3>
+          {warnings.length > 0 ? (
+            <span className="text-xs text-slate-500 dark:text-slate-400">{warnings.length} por revisar</span>
+          ) : null}
+        </div>
 
-      <section>
-        <h3 className="text-xs uppercase tracking-widest text-slate-500 dark:text-slate-300 mb-3">Advertencias</h3>
         {warnings.length === 0 ? (
-          <p className="text-sm text-emerald-700 dark:text-emerald-300">No hay advertencias activas.</p>
+          <div className="rounded-2xl border border-emerald-200/80 bg-emerald-500/8 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-500/20 dark:text-emerald-200">
+            No hay alertas activas. El documento está listo para seguir escribiendo o exportar.
+          </div>
         ) : (
           <div className="space-y-4">
             {(Array.from(warningsByCategory.entries()) as Array<[PedagogicalCategory, PedagogicalWarning[]]>).map(
               ([category, categoryWarnings]) => (
                 <div key={category}>
-                  <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-300 uppercase tracking-wide mb-2">
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-300">
                     {CATEGORY_LABEL[category]} ({categoryWarnings.length})
                   </h4>
                   <ul className="space-y-2">
@@ -122,18 +150,22 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
                         <button
                           type="button"
                           onClick={() => onJumpToWarning(warning)}
-                          className="w-full text-left rounded-lg border border-slate-200/60 dark:border-slate-700/70 bg-white/40 dark:bg-black/20 p-2 hover:border-indigo-400/70 transition-colors"
+                          className="w-full rounded-2xl border border-slate-200/80 bg-white/78 p-3 text-left transition-colors hover:border-indigo-400/60 hover:bg-indigo-500/5 dark:border-white/8 dark:bg-white/4 dark:hover:border-indigo-400/35 dark:hover:bg-indigo-500/8"
                           title={`Ir a línea ${warning.line}`}
                           aria-label={`Ir a la advertencia ${warning.severity} de la línea ${warning.line}: ${warning.message}`}
                         >
-                          <div className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                            Línea {warning.line} · {warning.severity}
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-xs font-semibold text-slate-700 dark:text-slate-100">
+                              Línea {warning.line}
+                            </div>
+                            <div className="text-[11px] uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                              {SOURCE_LABEL[warning.source ?? 'pedagogical']}
+                            </div>
                           </div>
-                          <div className="text-xs text-slate-600 dark:text-slate-300">{warning.message}</div>
-                          <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-                            <span>{SOURCE_LABEL[warning.source ?? 'pedagogical']}</span>
-                            {warning.suggestion && <span>Sugerencia: {warning.suggestion}</span>}
-                          </div>
+                          <div className="mt-2 text-[13px] leading-6 text-slate-700 dark:text-slate-200">{warning.message}</div>
+                          {warning.suggestion ? (
+                            <div className="mt-2 text-[11px] leading-5 text-slate-500 dark:text-slate-300">Sugerencia: {warning.suggestion}</div>
+                          ) : null}
                         </button>
                       </li>
                     ))}
@@ -144,6 +176,6 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
           </div>
         )}
       </section>
-    </aside>
+    </div>
   );
 };

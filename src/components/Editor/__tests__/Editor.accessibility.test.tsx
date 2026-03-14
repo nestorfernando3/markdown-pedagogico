@@ -192,7 +192,7 @@ describe('Editor accessibility', () => {
       })
     );
 
-    expect(await screen.findByRole('button', { name: 'Ignorar en sesión' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Ignorar esta alerta' })).toBeInTheDocument();
     await expectNoViolations(baseElement);
   });
 
@@ -202,7 +202,7 @@ describe('Editor accessibility', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Activar training mode' }));
     await flushParserCycle();
 
-    expect(await screen.findByText('Training mode')).toBeInTheDocument();
+    expect(await screen.findByText('Guía activa')).toBeInTheDocument();
     await expectNoViolations(baseElement);
   });
 });

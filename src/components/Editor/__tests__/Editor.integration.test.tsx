@@ -181,7 +181,7 @@ describe('Editor integration', () => {
     });
 
     fireEvent.click(marker);
-    fireEvent.click(await screen.findByRole('button', { name: 'Ignorar en sesión' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ignorar esta alerta' }));
 
     await waitFor(() => {
       expect(screen.queryByText(WARNING_MESSAGE)).not.toBeInTheDocument();
@@ -202,7 +202,7 @@ describe('Editor integration', () => {
 
     fireEvent.click(marker);
 
-    const ignoreButton = await screen.findByRole('button', { name: 'Ignorar en sesión' });
+    const ignoreButton = await screen.findByRole('button', { name: 'Ignorar esta alerta' });
     const tooltip = ignoreButton.closest('[role=\"tooltip\"]') as HTMLElement;
 
     expect(tooltip).toBeTruthy();
@@ -505,7 +505,7 @@ describe('Editor integration', () => {
     render(<Editor />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Activar training mode' }));
-    expect(await screen.findByText('Training mode')).toBeInTheDocument();
+    expect(await screen.findByText('Guía activa')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Crea un título principal' })).toBeInTheDocument();
 
     const textarea = screen.getByLabelText('Editor de contenido Markdown') as HTMLTextAreaElement;
@@ -564,7 +564,7 @@ describe('Editor integration', () => {
 
     expect(screen.getByRole('main')).toBeInTheDocument();
     expect(screen.getByRole('complementary', { name: 'Panel de Referencia' })).toBeInTheDocument();
-    expect(screen.getByRole('complementary', { name: 'Diagnóstico' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Diagnóstico' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Vista Previa Real' })).toBeInTheDocument();
     expect(screen.getAllByRole('status')).toHaveLength(1);
   });

@@ -228,8 +228,8 @@ export const TooltipContextual: React.FC<TooltipContextualProps> = ({
 
   const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1000;
   const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-  const estimatedWidth = type === 'pedagogy' ? 320 : Math.min(680, screenWidth - 24);
-  const estimatedHeight = type === 'pedagogy' ? 300 : 520;
+  const estimatedWidth = type === 'pedagogy' ? 292 : Math.min(680, screenWidth - 24);
+  const estimatedHeight = type === 'pedagogy' ? 250 : 520;
   const halfWidth = estimatedWidth / 2;
 
   const clampedX = useMemo(() => {
@@ -635,9 +635,16 @@ export const TooltipContextual: React.FC<TooltipContextualProps> = ({
       )}
 
       {type === 'pedagogy' && warning && (
-        <div className="flex flex-col gap-3 max-w-72" aria-describedby={`warning-${warning.id}`}>
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Advertencia pedagogica</div>
+        <div className="flex max-w-[16.5rem] flex-col gap-3" aria-describedby={`warning-${warning.id}`}>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-300">
+                Qué conviene ajustar
+              </div>
+              <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-50">
+                {warning.replacementConfig ? 'Puedes resolverlo ahora' : 'Revísalo antes de seguir'}
+              </div>
+            </div>
             <button
               type="button"
               data-tooltip-focus
@@ -650,22 +657,22 @@ export const TooltipContextual: React.FC<TooltipContextualProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide">
-            <span className="rounded-md px-2 py-1 bg-slate-200/70 text-slate-700 dark:bg-slate-700/70 dark:text-slate-200">
+          <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em]">
+            <span className="rounded-full px-2.5 py-1 bg-slate-200/70 text-slate-700 dark:bg-slate-700/70 dark:text-slate-200">
               {CATEGORY_LABEL[warning.category]}
             </span>
-            <span className={`rounded-md px-2 py-1 ${SEVERITY_BADGE_CLASS[warning.severity]}`}>{warning.severity}</span>
-            <span className="rounded-md px-2 py-1 bg-indigo-500/10 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200">
+            <span className={`rounded-full px-2.5 py-1 ${SEVERITY_BADGE_CLASS[warning.severity]}`}>{warning.severity}</span>
+            <span className="rounded-full px-2.5 py-1 bg-indigo-500/10 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200">
               {SOURCE_LABEL[warning.source ?? 'pedagogical']}
             </span>
           </div>
 
-          <p id={`warning-${warning.id}`} className="text-xs text-slate-600 dark:text-slate-300">
+          <p id={`warning-${warning.id}`} className="text-sm leading-6 text-slate-700 dark:text-slate-200">
             {warning.message}
           </p>
 
           {warning.suggestion && (!warning.suggestions || warning.suggestions.length === 0) && (
-            <div className="rounded-lg border border-indigo-200/70 bg-indigo-500/5 px-3 py-2 text-[11px] text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
+            <div className="rounded-xl border border-indigo-200/70 bg-indigo-500/6 px-3 py-2 text-xs leading-5 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
               {warning.suggestion}
             </div>
           )}
@@ -673,19 +680,19 @@ export const TooltipContextual: React.FC<TooltipContextualProps> = ({
           {warning.suggestions && warning.suggestions.length > 0 && (
             <div className="flex flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-300">
               {warning.suggestions.slice(0, 3).map((suggestion) => (
-                <span key={suggestion} className="rounded-md border border-slate-200/70 px-2 py-1 dark:border-slate-700/70">
+                <span key={suggestion} className="rounded-full border border-slate-200/70 px-2 py-1 dark:border-slate-700/70">
                   {suggestion}
                 </span>
               ))}
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 pt-1">
             {warning.replacementConfig && (
               <button
                 type="button"
                 onClick={onFixAction}
-                className="rounded-lg py-1.5 px-3 bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 dark:bg-indigo-500/30 hover:bg-indigo-500/30 transition-colors text-xs font-semibold"
+                className="rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-500"
               >
                 Aplicar corrección
               </button>
@@ -694,9 +701,9 @@ export const TooltipContextual: React.FC<TooltipContextualProps> = ({
             <button
               type="button"
               onClick={() => onIgnoreWarning(warning.id)}
-              className="rounded-lg py-1.5 px-3 bg-slate-500/20 text-slate-700 dark:text-slate-200 dark:bg-slate-500/30 hover:bg-slate-500/30 transition-colors text-xs font-semibold"
+              className="rounded-xl border border-slate-200/80 bg-white/75 px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-950/70 dark:text-slate-200 dark:hover:border-slate-600"
             >
-              Ignorar en sesión
+              Ignorar esta alerta
             </button>
           </div>
         </div>
