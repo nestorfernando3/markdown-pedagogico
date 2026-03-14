@@ -31,6 +31,10 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - Apertura segura de enlaces externos y navegación por anclas internas sin romper el shell de la app.
 - Recuperación de foco, selección y formato contextual en el editor tras aplicar acciones rápidas.
 - Mejoras de estabilidad en el menú contextual, accesibilidad del tooltip y persistencia del motor de edición.
+- El modo training ahora usa una única fuente de verdad para sus señales, evitando desfases con el editor y la preview.
+- El paso de exportación del training ya no se completa con exportaciones realizadas fuera de la activación actual del coach.
+- Los ejemplos del training dejaron de depender de la selección previa del usuario y ahora se insertan de forma no destructiva.
+- La detección del primer párrafo del training ya no cuenta contenido anidado dentro de citas u otras estructuras auxiliares.
 
 ## [1.0.0] - 2026-02-27
 

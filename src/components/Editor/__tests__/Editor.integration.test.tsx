@@ -493,6 +493,23 @@ describe('Editor integration', () => {
   });
 
   it('persists the selected editor engine when toggling CodeMirror mode', async () => {
+    const storageEntries = new Map<string, string>();
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: vi.fn((key: string) => storageEntries.get(key) ?? null),
+        setItem: vi.fn((key: string, value: string) => {
+          storageEntries.set(key, value);
+        }),
+        removeItem: vi.fn((key: string) => {
+          storageEntries.delete(key);
+        }),
+        clear: vi.fn(() => {
+          storageEntries.clear();
+        }),
+      },
+    });
+
     render(<Editor />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Activar editor CodeMirror' }));
@@ -513,6 +530,35 @@ describe('Editor integration', () => {
     await flushParserCycle();
 
     expect(screen.getByRole('heading', { name: 'Resalta una idea importante' })).toBeInTheDocument();
+  });
+
+  it('inserts training examples without mutating an existing text selection', async () => {
+    render(<Editor />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Activar training mode' }));
+
+    const textarea = screen.getByLabelText('Editor de contenido Markdown') as HTMLTextAreaElement;
+    const content = '# Documento\n\nPrimer párrafo con varias palabras para avanzar.\n';
+    fireEvent.change(textarea, { target: { value: content } });
+    await flushParserCycle();
+
+    const selectedWord = 'Documento';
+    const selectionStart = textarea.value.indexOf(selectedWord);
+    const selectionEnd = selectionStart + selectedWord.length;
+    textarea.focus();
+    textarea.setSelectionRange(selectionStart, selectionEnd);
+    fireEvent.select(textarea, {
+      target: {
+        selectionStart,
+        selectionEnd,
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Insertar ejemplo' }));
+
+    await waitFor(() => {
+      expect(textarea.value).toBe(`${content}\n**idea clave**\n`);
+    });
   });
 
   it('inserts training examples and keeps the coach stable in CodeMirror mode', async () => {

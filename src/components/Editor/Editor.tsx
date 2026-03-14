@@ -20,11 +20,16 @@ function toTooltipId(warningId: string): string {
 const EDITOR_ENGINE_STORAGE_KEY = 'markdown-pedagogico:editor-engine';
 
 function readEditorEngine(): EditorEngine {
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' || !window.localStorage) {
     return 'legacy';
   }
 
-  const storedValue = window.localStorage.getItem(EDITOR_ENGINE_STORAGE_KEY);
+  const storage = window.localStorage as Partial<Storage>;
+  if (typeof storage.getItem !== 'function') {
+    return 'legacy';
+  }
+
+  const storedValue = storage.getItem(EDITOR_ENGINE_STORAGE_KEY);
   return storedValue === 'codemirror' ? 'codemirror' : 'legacy';
 }
 
@@ -45,7 +50,6 @@ export const Editor: React.FC = () => {
     htmlPreview,
     warnings,
     diagnosticSnapshot,
-    ast,
     words,
     characters,
     readingMinutes,
@@ -90,7 +94,7 @@ export const Editor: React.FC = () => {
   const { exportPdf, isExporting, lastExportStatus } = useExportPdf();
 
   const { trainingState, toggleTrainingMode, closeTrainingMode, skipCurrentStep, toggleTrainingCollapsed } =
-    useTrainingMode(content, ast, warnings, editorEngine, successfulExportCount);
+    useTrainingMode(trainingSignals, successfulExportCount);
 
   const activeWarningId =
     tooltipState.visible && tooltipState.type === 'pedagogy' && tooltipState.warning ? tooltipState.warning.id : null;
@@ -103,7 +107,16 @@ export const Editor: React.FC = () => {
   }, [activeWarningId]);
 
   useEffect(() => {
-    window.localStorage.setItem(EDITOR_ENGINE_STORAGE_KEY, editorEngine);
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
+    }
+
+    const storage = window.localStorage as Partial<Storage>;
+    if (typeof storage.setItem !== 'function') {
+      return;
+    }
+
+    storage.setItem(EDITOR_ENGINE_STORAGE_KEY, editorEngine);
   }, [editorEngine]);
 
   useEffect(() => {
@@ -186,11 +199,6 @@ export const Editor: React.FC = () => {
   const handleTrainingInsertExample = () => {
     const exampleAction = trainingState.currentStep?.exampleAction;
     if (!exampleAction) {
-      return;
-    }
-
-    if (exampleAction.kind === 'format') {
-      handleFormatAction(exampleAction.action);
       return;
     }
 

@@ -1,14 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Root } from 'mdast';
-import type { MarkdownAction } from '../../components/Editor/TooltipContextual';
-import { buildTrainingSignals, type TrainingSignals } from '../../utils/trainingMode';
-import type { PedagogicalWarning } from '../../utils/pedagogicalRules';
+import type { TrainingSignals } from '../../utils/trainingMode';
 
 type TrainingTrack = 'base' | 'advanced';
 type TrainingHighlightTarget = 'editor' | 'preview';
 
 export type TrainingExampleAction =
-  | { kind: 'format'; action: MarkdownAction; label: string }
   | {
       kind: 'snippet';
       snippet: string;
@@ -30,6 +26,7 @@ export interface TrainingProgress {
 }
 
 export interface TrainingStepContext {
+  active: boolean;
   signals: TrainingSignals;
   completedStepIds: Set<string>;
   dismissedStepIds: Set<string>;
@@ -167,9 +164,12 @@ const TRAINING_STEPS: TrainingStep[] = [
     instruction: 'Usa negrita o cursiva para destacar una palabra o concepto clave.',
     successCriteria: 'Debe existir al menos un énfasis en el documento.',
     exampleAction: {
-      kind: 'format',
-      action: 'bold',
+      kind: 'snippet',
+      snippet: '\n**idea clave**\n',
       label: 'Insertar ejemplo',
+      placement: 'append',
+      selectionStartOffset: 3,
+      selectionEndOffset: 13,
     },
     highlightTarget: 'editor',
     unlockWhen: ({ completedStepIds }) => completedStepIds.has('intro-paragraph'),
@@ -182,9 +182,12 @@ const TRAINING_STEPS: TrainingStep[] = [
     instruction: 'Agrupa varios puntos relacionados usando una lista Markdown.',
     successCriteria: 'Debe existir al menos una lista.',
     exampleAction: {
-      kind: 'format',
-      action: 'unorderedList',
+      kind: 'snippet',
+      snippet: '\n- Punto uno\n- Punto dos\n',
       label: 'Insertar ejemplo',
+      placement: 'append',
+      selectionStartOffset: 3,
+      selectionEndOffset: 12,
     },
     highlightTarget: 'editor',
     unlockWhen: ({ completedStepIds }) => completedStepIds.has('basic-emphasis'),
@@ -197,9 +200,12 @@ const TRAINING_STEPS: TrainingStep[] = [
     instruction: 'Conecta el documento con una fuente, referencia o recurso externo.',
     successCriteria: 'Debe existir al menos un enlace.',
     exampleAction: {
-      kind: 'format',
-      action: 'link',
+      kind: 'snippet',
+      snippet: '\n[Recurso útil](https://ejemplo.com)\n',
       label: 'Insertar ejemplo',
+      placement: 'append',
+      selectionStartOffset: 16,
+      selectionEndOffset: 35,
     },
     highlightTarget: 'editor',
     unlockWhen: ({ completedStepIds }) => completedStepIds.has('basic-list'),
@@ -212,9 +218,12 @@ const TRAINING_STEPS: TrainingStep[] = [
     instruction: 'Prueba un bloque que añada valor al documento, como código, cita o imagen.',
     successCriteria: 'Debe existir un bloque de código, una cita o una imagen.',
     exampleAction: {
-      kind: 'format',
-      action: 'codeBlock',
+      kind: 'snippet',
+      snippet: '\n```md\ncodigo\n```\n',
       label: 'Insertar ejemplo',
+      placement: 'append',
+      selectionStartOffset: 7,
+      selectionEndOffset: 13,
     },
     highlightTarget: 'editor',
     unlockWhen: ({ completedStepIds }) => completedStepIds.has('basic-link'),
@@ -232,7 +241,8 @@ const TRAINING_STEPS: TrainingStep[] = [
     },
     highlightTarget: 'preview',
     unlockWhen: ({ completedStepIds }) => completedStepIds.has('useful-block'),
-    completeWhen: ({ successfulExportCount, activationExportCount }) => successfulExportCount > activationExportCount,
+    completeWhen: ({ active, successfulExportCount, activationExportCount }) =>
+      active && successfulExportCount > activationExportCount,
   },
   {
     id: 'sections-structure',
@@ -241,9 +251,12 @@ const TRAINING_STEPS: TrainingStep[] = [
     instruction: 'Divide el documento en secciones con subtítulos para mejorar la navegación.',
     successCriteria: 'Debe existir más de un encabezado y profundidad mínima H2.',
     exampleAction: {
-      kind: 'format',
-      action: 'h2',
+      kind: 'snippet',
+      snippet: '\n## Nueva sección\n',
       label: 'Insertar ejemplo',
+      placement: 'append',
+      selectionStartOffset: 4,
+      selectionEndOffset: 17,
     },
     highlightTarget: 'editor',
     unlockWhen: ({ completedStepIds, signals }) =>
@@ -257,9 +270,12 @@ const TRAINING_STEPS: TrainingStep[] = [
     instruction: 'Cuando comparas datos o atributos, una tabla suele ser más clara que un párrafo largo.',
     successCriteria: 'Debe existir una tabla Markdown.',
     exampleAction: {
-      kind: 'format',
-      action: 'table',
+      kind: 'snippet',
+      snippet: '\n| Campo | Valor |\n| --- | --- |\n| Ejemplo | Dato |\n',
       label: 'Insertar ejemplo',
+      placement: 'append',
+      selectionStartOffset: 3,
+      selectionEndOffset: 17,
     },
     highlightTarget: 'editor',
     unlockWhen: ({ completedStepIds, signals }) =>
@@ -273,9 +289,12 @@ const TRAINING_STEPS: TrainingStep[] = [
     instruction: 'Usa una admonition cuando quieras resaltar una advertencia, tip o nota clave.',
     successCriteria: 'Debe existir una admonition válida.',
     exampleAction: {
-      kind: 'format',
-      action: 'admonition',
+      kind: 'snippet',
+      snippet: '\n> [!NOTE]\n> Nota importante.\n',
       label: 'Insertar ejemplo',
+      placement: 'append',
+      selectionStartOffset: 13,
+      selectionEndOffset: 28,
     },
     highlightTarget: 'editor',
     unlockWhen: ({ completedStepIds }) => completedStepIds.has('sections-structure'),
@@ -288,9 +307,12 @@ const TRAINING_STEPS: TrainingStep[] = [
     instruction: 'Si incluyes código, define el lenguaje para activar resaltado y mejor lectura.',
     successCriteria: 'Debe existir al menos un bloque de código con lenguaje.',
     exampleAction: {
-      kind: 'format',
-      action: 'codeBlock',
+      kind: 'snippet',
+      snippet: '\n```ts\nconst ejemplo = true;\n```\n',
       label: 'Insertar ejemplo',
+      placement: 'append',
+      selectionStartOffset: 7,
+      selectionEndOffset: 28,
     },
     highlightTarget: 'editor',
     unlockWhen: ({ completedStepIds, signals }) =>
@@ -304,9 +326,12 @@ const TRAINING_STEPS: TrainingStep[] = [
     instruction: 'Usa notas al pie para ampliar detalles sin interrumpir la lectura principal.',
     successCriteria: 'Debe existir una nota al pie.',
     exampleAction: {
-      kind: 'format',
-      action: 'footnote',
+      kind: 'snippet',
+      snippet: '\nDato importante[^1]\n\n[^1]: Amplía este detalle.\n',
       label: 'Insertar ejemplo',
+      placement: 'append',
+      selectionStartOffset: 1,
+      selectionEndOffset: 15,
     },
     highlightTarget: 'editor',
     unlockWhen: ({ completedStepIds, signals }) =>
@@ -320,9 +345,12 @@ const TRAINING_STEPS: TrainingStep[] = [
     instruction: 'Cuando el documento crece, la tabla de contenido mejora la navegación.',
     successCriteria: 'Debe existir un placeholder `[TOC]`.',
     exampleAction: {
-      kind: 'format',
-      action: 'toc',
+      kind: 'snippet',
+      snippet: '\n[TOC]\n',
       label: 'Insertar ejemplo',
+      placement: 'append',
+      selectionStartOffset: 2,
+      selectionEndOffset: 5,
     },
     highlightTarget: 'preview',
     unlockWhen: ({ completedStepIds, signals }) => completedStepIds.has('sections-structure') && signals.headingCount >= 3,
@@ -335,9 +363,12 @@ const TRAINING_STEPS: TrainingStep[] = [
     instruction: 'Puedes dar tono visual rápido con shortcodes como `:sparkles:` sin romper el Markdown.',
     successCriteria: 'Debe existir al menos un emoji shortcode.',
     exampleAction: {
-      kind: 'format',
-      action: 'emoji',
+      kind: 'snippet',
+      snippet: '\n:sparkles:\n',
       label: 'Insertar ejemplo',
+      placement: 'append',
+      selectionStartOffset: 1,
+      selectionEndOffset: 11,
     },
     highlightTarget: 'preview',
     unlockWhen: ({ completedStepIds, signals }) =>
@@ -351,9 +382,12 @@ const TRAINING_STEPS: TrainingStep[] = [
     instruction: 'Si el documento es técnico, puedes enriquecerlo con Mermaid o matemáticas.',
     successCriteria: 'Debe existir Mermaid o un bloque matemático.',
     exampleAction: {
-      kind: 'format',
-      action: 'mermaid',
+      kind: 'snippet',
+      snippet: '\n```mermaid\ngraph TD\n  A[Idea] --> B[Resultado]\n```\n',
       label: 'Insertar ejemplo',
+      placement: 'append',
+      selectionStartOffset: 12,
+      selectionEndOffset: 51,
     },
     highlightTarget: 'preview',
     unlockWhen: ({ completedStepIds, signals }) =>
@@ -368,6 +402,7 @@ function buildContext(
   successfulExportCount: number
 ): TrainingStepContext {
   return {
+    active: progress.active,
     signals,
     completedStepIds: new Set(progress.completedStepIds),
     dismissedStepIds: new Set(progress.dismissedStepIds),
@@ -378,7 +413,7 @@ function buildContext(
 
 export function resolveObservedCompletedSteps(
   signals: TrainingSignals,
-  progress: Pick<TrainingProgress, 'completedStepIds' | 'dismissedStepIds' | 'activationExportCount'>,
+  progress: Pick<TrainingProgress, 'active' | 'completedStepIds' | 'dismissedStepIds' | 'activationExportCount'>,
   successfulExportCount: number
 ): string[] {
   const context = buildContext(
@@ -403,7 +438,7 @@ export function resolveObservedCompletedSteps(
 
 export function resolveVisibleTrainingSteps(
   signals: TrainingSignals,
-  progress: Pick<TrainingProgress, 'completedStepIds' | 'dismissedStepIds' | 'activationExportCount'>,
+  progress: Pick<TrainingProgress, 'active' | 'completedStepIds' | 'dismissedStepIds' | 'activationExportCount'>,
   successfulExportCount: number
 ): TrainingStep[] {
   const context = buildContext(
@@ -422,7 +457,7 @@ export function resolveVisibleTrainingSteps(
 
 export function resolveCurrentTrainingStep(
   signals: TrainingSignals,
-  progress: Pick<TrainingProgress, 'completedStepIds' | 'dismissedStepIds' | 'activationExportCount'>,
+  progress: Pick<TrainingProgress, 'active' | 'completedStepIds' | 'dismissedStepIds' | 'activationExportCount'>,
   successfulExportCount: number
 ): TrainingStep | null {
   const visibleSteps = resolveVisibleTrainingSteps(signals, progress, successfulExportCount);
@@ -439,13 +474,7 @@ export function resolveCurrentTrainingStep(
   return null;
 }
 
-export function useTrainingMode(
-  content: string,
-  ast: Root | null,
-  warnings: PedagogicalWarning[],
-  editorEngine: 'legacy' | 'codemirror',
-  successfulExportCount: number
-): UseTrainingModeResult {
+export function useTrainingMode(signals: TrainingSignals, successfulExportCount: number): UseTrainingModeResult {
   const [progress, setProgress] = useState<TrainingProgress>(() => {
     if (typeof window === 'undefined') {
       return createDefaultProgress();
@@ -459,14 +488,13 @@ export function useTrainingMode(
     }
   });
 
-  const signals = useMemo(() => buildTrainingSignals(content, ast, warnings), [ast, content, warnings]);
-
   const completedStepIds = useMemo(
     () =>
       uniqueIds(
         resolveObservedCompletedSteps(
           signals,
           {
+            active: progress.active,
             completedStepIds: progress.completedStepIds,
             dismissedStepIds: progress.dismissedStepIds,
             activationExportCount: progress.activationExportCount,
@@ -482,6 +510,7 @@ export function useTrainingMode(
       resolveVisibleTrainingSteps(
         signals,
         {
+          active: progress.active,
           completedStepIds,
           dismissedStepIds: progress.dismissedStepIds,
           activationExportCount: progress.activationExportCount,
@@ -496,6 +525,7 @@ export function useTrainingMode(
       resolveCurrentTrainingStep(
         signals,
         {
+          active: progress.active,
           completedStepIds,
           dismissedStepIds: progress.dismissedStepIds,
           activationExportCount: progress.activationExportCount,
@@ -541,11 +571,16 @@ export function useTrainingMode(
   }, [currentStep?.id, progress.currentStepId, progress.active]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === 'undefined' || !window.localStorage) {
       return;
     }
 
-    window.localStorage.setItem(TRAINING_STORAGE_KEY, JSON.stringify(progress));
+    const storage = window.localStorage as Partial<Storage>;
+    if (typeof storage.setItem !== 'function') {
+      return;
+    }
+
+    storage.setItem(TRAINING_STORAGE_KEY, JSON.stringify(progress));
   }, [progress]);
 
   const toggleTrainingMode = useCallback(() => {
@@ -562,7 +597,7 @@ export function useTrainingMode(
         ...previous,
         active: true,
         collapsed: false,
-        activationExportCount: previous.lastSeenAt === null ? successfulExportCount : previous.activationExportCount,
+        activationExportCount: successfulExportCount,
         lastSeenAt: Date.now(),
       };
     });

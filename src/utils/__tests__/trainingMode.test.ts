@@ -77,6 +77,18 @@ $$
     expect(signals.hasMath).toBe(true);
     expect(signals.isTechnicalDocument).toBe(true);
   });
+
+  it('does not count nested blockquote text as the first body paragraph', () => {
+    const markdown = `# Documento
+
+> Esta cita no debería completar el paso de párrafo inicial.
+`;
+
+    const signals = buildTrainingSignals(markdown, parseAst(markdown), []);
+
+    expect(signals.hasH1).toBe(true);
+    expect(signals.hasParagraph).toBe(false);
+  });
 });
 
 describe('training route resolution', () => {
@@ -86,6 +98,7 @@ describe('training route resolution', () => {
     const completedStepIds = resolveObservedCompletedSteps(
       signals,
       {
+        active: true,
         completedStepIds: [],
         dismissedStepIds: [],
         activationExportCount: 0,
@@ -96,6 +109,7 @@ describe('training route resolution', () => {
     const currentStep = resolveCurrentTrainingStep(
       signals,
       {
+        active: true,
         completedStepIds,
         dismissedStepIds: [],
         activationExportCount: 0,
@@ -129,6 +143,7 @@ const answer = 42;
     const visibleBeforeExport = resolveVisibleTrainingSteps(
       signals,
       {
+        active: true,
         completedStepIds: [
           'title-main',
           'intro-paragraph',
@@ -148,6 +163,7 @@ const answer = 42;
     const visibleAfterExport = resolveVisibleTrainingSteps(
       signals,
       {
+        active: true,
         completedStepIds: [
           'title-main',
           'intro-paragraph',
@@ -164,5 +180,40 @@ const answer = 42;
     );
 
     expect(visibleAfterExport.some((step) => step.id === 'sections-structure')).toBe(true);
+  });
+
+  it('does not complete the export step while training is inactive', () => {
+    const markdown = `# Documento
+
+Parrafo con **énfasis** y un [enlace](https://example.com)
+
+- uno
+- dos
+
+\`\`\`md
+codigo
+\`\`\`
+`;
+
+    const signals = buildTrainingSignals(markdown, parseAst(markdown), []);
+    const completedWhileInactive = resolveObservedCompletedSteps(
+      signals,
+      {
+        active: false,
+        completedStepIds: [
+          'title-main',
+          'intro-paragraph',
+          'basic-emphasis',
+          'basic-list',
+          'basic-link',
+          'useful-block',
+        ],
+        dismissedStepIds: [],
+        activationExportCount: 0,
+      },
+      1
+    );
+
+    expect(completedWhileInactive).not.toContain('export-final');
   });
 });

@@ -47,7 +47,7 @@ export function buildTrainingSignals(
   let hasMath = false;
 
   if (ast) {
-    visit(ast, (node) => {
+    visit(ast, (node, _index, parent) => {
       if (node.type === 'heading') {
         headingCount += 1;
         headingDepth = Math.max(headingDepth, node.depth);
@@ -56,7 +56,7 @@ export function buildTrainingSignals(
         }
       }
 
-      if (node.type === 'paragraph') {
+      if (node.type === 'paragraph' && parent?.type === 'root') {
         hasParagraph = true;
       }
 
