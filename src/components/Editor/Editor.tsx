@@ -207,7 +207,7 @@ export const Editor: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-500 font-sans">
+    <div className="editor-app-shell flex h-full min-h-screen flex-col bg-transparent font-sans text-slate-900 transition-colors duration-500 dark:text-slate-50">
       <Toolbar
         warningCount={visibleWarnings.length}
         onOpen={handleOpen}
