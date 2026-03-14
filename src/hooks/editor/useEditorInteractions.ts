@@ -1,10 +1,21 @@
 import { useCallback, useRef, useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from 'react';
+import type { RefObject } from 'react';
+import type { EditorHandle } from '../../components/Editor/editorHandle';
 import type { MarkdownAction } from '../../components/Editor/TooltipContextual';
 import type { PedagogicalWarning } from '../../utils/markdownParser';
 import type { TooltipState } from '../useTooltipState';
 
 const LINE_HEIGHT_PX = 28;
+
+interface SelectionRange {
+  start: number;
+  end: number;
+}
+
+interface AnchorPoint {
+  x: number;
+  y: number;
+}
 
 function caretFromOffset(text: string, offset: number): { line: number; column: number } {
   const safeOffset = Math.max(0, Math.min(offset, text.length));
@@ -19,13 +30,40 @@ function caretFromOffset(text: string, offset: number): { line: number; column: 
   };
 }
 
+function estimateFormatTooltipAnchor(editor: EditorHandle, selectionEnd: number): AnchorPoint {
+  const rect = editor.getBoundingClientRect();
+  const metrics = editor.getTextMetrics();
+  const { line, column } = caretFromOffset(editor.getValue(), selectionEnd);
+  const lineHeight = metrics.lineHeight || LINE_HEIGHT_PX;
+  const paddingLeft = metrics.paddingLeft || 0;
+  const paddingTop = metrics.paddingTop || 0;
+  const paddingRight = metrics.paddingRight || 0;
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+
+  if (context) {
+    context.font = metrics.font;
+  }
+
+  const measuredWidth = context?.measureText('0').width ?? 0;
+  const characterWidth = measuredWidth > 0 ? measuredWidth : metrics.fontSize * 0.6;
+  const contentWidth = rect.width - paddingLeft - paddingRight;
+  const x = rect.left + paddingLeft + Math.min(Math.max(0, contentWidth - 16), Math.max(0, column - 1) * characterWidth);
+  const y = rect.top + paddingTop + (line - 1) * lineHeight - editor.getScrollTop() + lineHeight;
+
+  return {
+    x,
+    y,
+  };
+}
+
 interface UseEditorInteractionsOptions {
-  editorRef: RefObject<HTMLTextAreaElement | null>;
+  editorRef: RefObject<EditorHandle | null>;
   content: string;
   setContent: (next: string) => void;
   tooltipState: TooltipState;
   hideTooltip: () => void;
-  showFormatTooltip: (anchorRect: DOMRect) => void;
+  showFormatTooltip: (anchorPoint: AnchorPoint) => void;
   togglePedagogyTooltip: (warning: PedagogicalWarning, markerRect: DOMRect) => void;
 }
 
@@ -34,12 +72,20 @@ export interface UseEditorInteractionsResult {
   editorScrollTop: number;
   onEditorScroll: (scrollTop: number) => void;
   handleEditorChange: (nextValue: string, selectionStart: number) => void;
-  handleEditorKeyUp: (selectionStart: number) => void;
-  handleEditorClick: (selectionStart: number, selectionEnd: number) => void;
-  handleSelect: () => void;
+  handleEditorKeyUp: (selectionStart: number, selectionEnd: number) => void;
+  handleEditorPointerUp: (selectionStart: number, selectionEnd: number, anchorPoint: AnchorPoint) => void;
+  handleSelect: (selectionStart: number, selectionEnd: number, nextValue: string) => void;
   handleFormatAction: (action: MarkdownAction) => void;
+  handleInsertSnippet: (
+    snippet: string,
+    options?: {
+      placement?: 'selection' | 'append';
+      selectionStartOffset?: number;
+      selectionEndOffset?: number;
+    }
+  ) => void;
   handleApplyFix: () => void;
-  handleTabIndentation: (event: ReactKeyboardEvent<HTMLTextAreaElement>) => void;
+  handleTabIndentation: (selectionStart: number, selectionEnd: number, shiftKey: boolean) => boolean;
   handleJumpToWarning: (warning: PedagogicalWarning) => void;
   handleToggleWarning: (warning: PedagogicalWarning | null, markerRect?: DOMRect, trigger?: HTMLElement) => void;
   handleTooltipClose: () => void;
@@ -58,6 +104,7 @@ export function useEditorInteractions({
   const [caretPosition, setCaretPosition] = useState({ line: 1, column: 1 });
   const [editorScrollTop, setEditorScrollTop] = useState(0);
   const tooltipTriggerRef = useRef<HTMLElement | null>(null);
+  const lastSelectionRef = useRef<SelectionRange>({ start: 0, end: 0 });
 
   const updateCaretFromSelection = useCallback(
     (selectionStart: number, nextText: string = content) => {
@@ -66,26 +113,31 @@ export function useEditorInteractions({
     [content]
   );
 
+  const rememberSelection = useCallback((start: number, end: number) => {
+    lastSelectionRef.current = { start, end };
+  }, []);
+
   const replaceSelection = useCallback(
     (
-      textarea: HTMLTextAreaElement,
+      editor: EditorHandle,
+      selectionRange: SelectionRange,
       replacement: string,
       selectionStartAfter: number,
       selectionEndAfter: number
     ) => {
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
+      const { start, end } = selectionRange;
       const nextContent = content.slice(0, start) + replacement + content.slice(end);
 
       setContent(nextContent);
 
       requestAnimationFrame(() => {
-        textarea.focus();
-        textarea.setSelectionRange(selectionStartAfter, selectionEndAfter);
+        editor.focus();
+        editor.setSelection(selectionStartAfter, selectionEndAfter);
+        rememberSelection(selectionStartAfter, selectionEndAfter);
         updateCaretFromSelection(selectionEndAfter, nextContent);
       });
     },
-    [content, setContent, updateCaretFromSelection]
+    [content, rememberSelection, setContent, updateCaretFromSelection]
   );
 
   const handleFormatAction = useCallback(
@@ -95,8 +147,7 @@ export function useEditorInteractions({
         return;
       }
 
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
+      const { start, end } = lastSelectionRef.current;
       const selectedText = content.slice(start, end);
 
       const wrapInline = (leftToken: string, rightToken: string, placeholder: string) => {
@@ -295,8 +346,8 @@ export function useEditorInteractions({
         case 'definitionList': {
           const term = selectedText.trim() || 'Termino';
           const definition = 'Definicion breve.';
-          replacement = `\n${term}\n: ${definition}\n`;
-          selectionStartAfter = start + 1 + term.length + 3;
+          replacement = `\n${term}\n\n: ${definition}\n`;
+          selectionStartAfter = start + 1 + term.length + 4;
           selectionEndAfter = selectionStartAfter + definition.length;
           break;
         }
@@ -356,10 +407,48 @@ export function useEditorInteractions({
         }
       }
 
-      replaceSelection(textarea, replacement, selectionStartAfter, selectionEndAfter);
+      replaceSelection(textarea, { start, end }, replacement, selectionStartAfter, selectionEndAfter);
       hideTooltip();
     },
     [content, editorRef, hideTooltip, replaceSelection]
+  );
+
+  const handleInsertSnippet = useCallback(
+    (
+      snippet: string,
+      options?: {
+        placement?: 'selection' | 'append';
+        selectionStartOffset?: number;
+        selectionEndOffset?: number;
+      }
+    ) => {
+      const editor = editorRef.current;
+      if (!editor) {
+        return;
+      }
+
+      const placement = options?.placement ?? 'selection';
+      const selectionRange =
+        placement === 'append'
+          ? {
+              start: content.length,
+              end: content.length,
+            }
+          : lastSelectionRef.current;
+
+      const selectionStartOffset = options?.selectionStartOffset ?? snippet.length;
+      const selectionEndOffset = options?.selectionEndOffset ?? selectionStartOffset;
+
+      replaceSelection(
+        editor,
+        selectionRange,
+        snippet,
+        selectionRange.start + selectionStartOffset,
+        selectionRange.start + selectionEndOffset
+      );
+      hideTooltip();
+    },
+    [content.length, editorRef, hideTooltip, replaceSelection]
   );
 
   const handleApplyFix = useCallback(() => {
@@ -381,12 +470,14 @@ export function useEditorInteractions({
 
     requestAnimationFrame(() => {
       textarea.focus();
-      textarea.setSelectionRange(caretOffset, caretOffset);
-      textarea.scrollTop = Math.max(0, (tooltipState.warning?.line ?? 1) * LINE_HEIGHT_PX - LINE_HEIGHT_PX * 2);
-      setEditorScrollTop(textarea.scrollTop);
+      textarea.setSelection(caretOffset, caretOffset);
+      rememberSelection(caretOffset, caretOffset);
+      const nextScrollTop = Math.max(0, (tooltipState.warning?.line ?? 1) * LINE_HEIGHT_PX - LINE_HEIGHT_PX * 2);
+      textarea.setScrollTop(nextScrollTop);
+      setEditorScrollTop(nextScrollTop);
       updateCaretFromSelection(caretOffset, nextContent);
     });
-  }, [content, editorRef, hideTooltip, setContent, tooltipState.warning, updateCaretFromSelection]);
+  }, [content, editorRef, hideTooltip, rememberSelection, setContent, tooltipState.warning, updateCaretFromSelection]);
 
   const handleToggleWarning = useCallback(
     (warning: PedagogicalWarning | null, markerRect?: DOMRect, trigger?: HTMLElement) => {
@@ -401,36 +492,21 @@ export function useEditorInteractions({
     [hideTooltip, togglePedagogyTooltip]
   );
 
-  const handleSelect = useCallback(() => {
-    const textarea = editorRef.current;
-    if (!textarea) {
-      return;
-    }
+  const handleSelect = useCallback((selectionStart: number, selectionEnd: number, nextValue: string) => {
+    rememberSelection(selectionStart, selectionEnd);
+    updateCaretFromSelection(selectionStart, nextValue);
 
-    updateCaretFromSelection(textarea.selectionStart, textarea.value);
-
-    const hasSelection = textarea.selectionStart !== textarea.selectionEnd;
-    if (hasSelection && !(tooltipState.visible && tooltipState.type === 'pedagogy')) {
-      showFormatTooltip(textarea.getBoundingClientRect());
-      return;
-    }
-
-    if (tooltipState.type === 'format' && !hasSelection) {
+    if (tooltipState.type === 'format' && selectionStart === selectionEnd) {
       hideTooltip();
     }
-  }, [editorRef, hideTooltip, showFormatTooltip, tooltipState.type, tooltipState.visible, updateCaretFromSelection]);
+  }, [hideTooltip, rememberSelection, tooltipState.type, updateCaretFromSelection]);
 
   const handleTabIndentation = useCallback(
-    (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    (selectionStart: number, selectionEnd: number, shiftKey: boolean) => {
       const textarea = editorRef.current;
-      if (!textarea || event.key !== 'Tab') {
-        return;
+      if (!textarea) {
+        return false;
       }
-
-      event.preventDefault();
-
-      const selectionStart = textarea.selectionStart;
-      const selectionEnd = textarea.selectionEnd;
       const blockStart = content.lastIndexOf('\n', Math.max(0, selectionStart - 1)) + 1;
       const blockEndBreak = content.indexOf('\n', selectionEnd);
       const blockEnd = blockEndBreak === -1 ? content.length : blockEndBreak;
@@ -441,7 +517,7 @@ export function useEditorInteractions({
       let nextSelectionStart = selectionStart;
       let nextSelectionEnd = selectionEnd;
 
-      if (!event.shiftKey) {
+      if (!shiftKey) {
         nextLines = lines.map((line) => `  ${line}`);
         nextSelectionStart = selectionStart + 2;
         nextSelectionEnd = selectionEnd + 2 * lines.length;
@@ -469,11 +545,14 @@ export function useEditorInteractions({
 
       requestAnimationFrame(() => {
         textarea.focus();
-        textarea.setSelectionRange(nextSelectionStart, nextSelectionEnd);
+        textarea.setSelection(nextSelectionStart, nextSelectionEnd);
+        rememberSelection(nextSelectionStart, nextSelectionEnd);
         updateCaretFromSelection(nextSelectionEnd, nextContent);
       });
+
+      return true;
     },
-    [content, editorRef, setContent, updateCaretFromSelection]
+    [content, editorRef, rememberSelection, setContent, updateCaretFromSelection]
   );
 
   const handleJumpToWarning = useCallback(
@@ -487,15 +566,16 @@ export function useEditorInteractions({
       const end = warning.offset + warning.length;
 
       textarea.focus();
-      textarea.setSelectionRange(start, end);
+      textarea.setSelection(start, end);
+      rememberSelection(start, end);
       const nextScrollTop = Math.max(0, (warning.line - 1) * LINE_HEIGHT_PX - LINE_HEIGHT_PX * 2);
-      textarea.scrollTop = nextScrollTop;
+      textarea.setScrollTop(nextScrollTop);
       setEditorScrollTop(nextScrollTop);
       updateCaretFromSelection(start, content);
 
       hideTooltip();
     },
-    [content, editorRef, hideTooltip, updateCaretFromSelection]
+    [content, editorRef, hideTooltip, rememberSelection, updateCaretFromSelection]
   );
 
   const focusTooltipTrigger = useCallback(() => {
@@ -504,8 +584,22 @@ export function useEditorInteractions({
 
   const handleTooltipClose = useCallback(() => {
     hideTooltip();
-    focusTooltipTrigger();
-  }, [focusTooltipTrigger, hideTooltip]);
+    if (tooltipState.type === 'pedagogy') {
+      focusTooltipTrigger();
+      return;
+    }
+
+    const textarea = editorRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    const { start, end } = lastSelectionRef.current;
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelection(start, end);
+    });
+  }, [editorRef, focusTooltipTrigger, hideTooltip, tooltipState.type]);
 
   const onEditorScroll = useCallback((scrollTop: number) => {
     setEditorScrollTop(scrollTop);
@@ -513,29 +607,47 @@ export function useEditorInteractions({
 
   const handleEditorChange = useCallback(
     (nextValue: string, selectionStart: number) => {
+      rememberSelection(selectionStart, selectionStart);
+      if (tooltipState.visible && tooltipState.type === 'format') {
+        hideTooltip();
+      }
+
       setContent(nextValue);
       updateCaretFromSelection(selectionStart, nextValue);
     },
-    [setContent, updateCaretFromSelection]
+    [hideTooltip, rememberSelection, setContent, tooltipState.type, tooltipState.visible, updateCaretFromSelection]
   );
 
   const handleEditorKeyUp = useCallback(
-    (selectionStart: number) => {
-      updateCaretFromSelection(selectionStart);
-    },
-    [updateCaretFromSelection]
-  );
-
-  const handleEditorClick = useCallback(
     (selectionStart: number, selectionEnd: number) => {
       const textarea = editorRef.current;
       if (!textarea) {
         return;
       }
 
+      rememberSelection(selectionStart, selectionEnd);
+      updateCaretFromSelection(selectionStart, textarea.getValue());
+
       const hasSelection = selectionStart !== selectionEnd;
       if (hasSelection && !(tooltipState.visible && tooltipState.type === 'pedagogy')) {
-        showFormatTooltip(textarea.getBoundingClientRect());
+        showFormatTooltip(estimateFormatTooltipAnchor(textarea, selectionEnd));
+        return;
+      }
+
+      if (tooltipState.type === 'format' && !hasSelection) {
+        hideTooltip();
+      }
+    },
+    [editorRef, hideTooltip, rememberSelection, showFormatTooltip, tooltipState.type, tooltipState.visible, updateCaretFromSelection]
+  );
+
+  const handleEditorPointerUp = useCallback(
+    (selectionStart: number, selectionEnd: number, anchorPoint: AnchorPoint) => {
+      rememberSelection(selectionStart, selectionEnd);
+      updateCaretFromSelection(selectionStart);
+      const hasSelection = selectionStart !== selectionEnd;
+      if (hasSelection && !(tooltipState.visible && tooltipState.type === 'pedagogy')) {
+        showFormatTooltip(anchorPoint);
         return;
       }
 
@@ -543,7 +655,7 @@ export function useEditorInteractions({
         hideTooltip();
       }
     },
-    [editorRef, hideTooltip, showFormatTooltip, tooltipState.type, tooltipState.visible]
+    [hideTooltip, rememberSelection, showFormatTooltip, tooltipState.type, tooltipState.visible, updateCaretFromSelection]
   );
 
   return {
@@ -552,9 +664,10 @@ export function useEditorInteractions({
     onEditorScroll,
     handleEditorChange,
     handleEditorKeyUp,
-    handleEditorClick,
+    handleEditorPointerUp,
     handleSelect,
     handleFormatAction,
+    handleInsertSnippet,
     handleApplyFix,
     handleTabIndentation,
     handleJumpToWarning,

@@ -1,7 +1,5 @@
-import { open as openDialog, save as saveDialog } from '@tauri-apps/api/dialog';
-import { readTextFile } from '@tauri-apps/api/fs';
-import { invoke } from '@tauri-apps/api/tauri';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isTauriRuntime, openMarkdownFileInBrowser, saveTextFileInBrowser, writeTextToBrowserFile } from '../utils/runtime';
 
 export interface UseFileOperationsOptions {
   content: string;
@@ -24,6 +22,7 @@ export function useFileOperations({ content, onContentChange }: UseFileOperation
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaveStatus, setLastSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const lastPersistedContentRef = useRef(content);
+  const browserFileHandleRef = useRef<FileSystemFileHandle | null>(null);
   const saveFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -44,11 +43,30 @@ export function useFileOperations({ content, onContentChange }: UseFileOperation
     setIsDirty(false);
   }, []);
 
-  const persistToPath = useCallback(async (path: string, nextContent: string) => {
-    await invoke('export_document', {
-      path,
-      content: nextContent,
-    });
+  const persistToPath = useCallback(async (path: string, nextContent: string): Promise<boolean> => {
+    if (isTauriRuntime()) {
+      const { invoke } = await import('@tauri-apps/api/tauri');
+      await invoke('export_document', {
+        path,
+        content: nextContent,
+      });
+      return true;
+    }
+
+    if (browserFileHandleRef.current) {
+      await writeTextToBrowserFile(browserFileHandleRef.current, nextContent);
+      return true;
+    }
+
+    const savedFile = await saveTextFileInBrowser(nextContent, path, 'documento.md');
+    if (!savedFile) {
+      return false;
+    }
+
+    if (savedFile?.handle) {
+      browserFileHandleRef.current = savedFile.handle;
+    }
+    return true;
   }, []);
 
   const saveAsMarkdown = useCallback(async (nextContent: string) => {
@@ -56,18 +74,45 @@ export function useFileOperations({ content, onContentChange }: UseFileOperation
     setLastSaveStatus('idle');
 
     try {
-      const path = await saveDialog({
-        title: 'Guardar archivo Markdown',
-        defaultPath: 'documento.md',
-        filters: [{ name: 'Markdown', extensions: ['md'] }],
-      });
+      const path = isTauriRuntime()
+        ? await (await import('@tauri-apps/api/dialog')).save({
+            title: 'Guardar archivo Markdown',
+            defaultPath: 'documento.md',
+            filters: [{ name: 'Markdown', extensions: ['md'] }],
+          })
+        : null;
+
+      if (!isTauriRuntime()) {
+        const savedFile = await saveTextFileInBrowser(nextContent, currentPath ?? 'documento.md', 'documento.md');
+        if (!savedFile) {
+          setLastSaveStatus('idle');
+          return;
+        }
+
+        browserFileHandleRef.current = savedFile.handle ?? null;
+        commitPersistedState(savedFile.name, nextContent);
+        setLastSaveStatus('success');
+
+        if (saveFeedbackTimeoutRef.current) {
+          clearTimeout(saveFeedbackTimeoutRef.current);
+        }
+        saveFeedbackTimeoutRef.current = setTimeout(() => {
+          setLastSaveStatus('idle');
+        }, 3000);
+        return;
+      }
 
       if (!path) {
         setLastSaveStatus('idle');
         return;
       }
 
-      await persistToPath(path, nextContent);
+      const saved = await persistToPath(path, nextContent);
+      if (!saved) {
+        setLastSaveStatus('idle');
+        return;
+      }
+
       commitPersistedState(path, nextContent);
       setLastSaveStatus('success');
 
@@ -84,7 +129,7 @@ export function useFileOperations({ content, onContentChange }: UseFileOperation
     } finally {
       setIsSaving(false);
     }
-  }, [commitPersistedState, persistToPath]);
+  }, [commitPersistedState, currentPath, persistToPath]);
 
   const saveMarkdown = useCallback(async (nextContent: string) => {
     if (!currentPath) {
@@ -96,7 +141,12 @@ export function useFileOperations({ content, onContentChange }: UseFileOperation
     setLastSaveStatus('idle');
 
     try {
-      await persistToPath(currentPath, nextContent);
+      const saved = await persistToPath(currentPath, nextContent);
+      if (!saved) {
+        setLastSaveStatus('idle');
+        return;
+      }
+
       commitPersistedState(currentPath, nextContent);
       setLastSaveStatus('success');
 
@@ -124,6 +174,20 @@ export function useFileOperations({ content, onContentChange }: UseFileOperation
     }
 
     try {
+      if (!isTauriRuntime()) {
+        const openedFile = await openMarkdownFileInBrowser();
+        if (!openedFile) {
+          return;
+        }
+
+        onContentChange(openedFile.content);
+        browserFileHandleRef.current = openedFile.handle ?? null;
+        commitPersistedState(openedFile.name, openedFile.content);
+        setLastSaveStatus('idle');
+        return;
+      }
+
+      const { open: openDialog } = await import('@tauri-apps/api/dialog');
       const selected = await openDialog({
         title: 'Abrir archivo Markdown',
         multiple: false,
@@ -134,8 +198,10 @@ export function useFileOperations({ content, onContentChange }: UseFileOperation
         return;
       }
 
+      const { readTextFile } = await import('@tauri-apps/api/fs');
       const loadedContent = await readTextFile(selected);
       onContentChange(loadedContent);
+      browserFileHandleRef.current = null;
       commitPersistedState(selected, loadedContent);
       setLastSaveStatus('idle');
     } catch (error) {

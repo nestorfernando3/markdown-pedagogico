@@ -4,6 +4,34 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y este proyecto adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
+## [Unreleased]
+
+### Añadido
+
+- Soporte extendido de Markdown en preview y exportación con tablas, task lists, footnotes, front matter, TOC, anchors y HTML enriquecido.
+- Render de matemáticas con KaTeX y diagramas Mermaid en preview y exportación PDF.
+- Resaltado de bloques de código con Shiki y tratamiento visual consistente entre vista previa y exportación.
+- Diagnóstico editorial con `remark-lint` y ortografía offline con `nspell`, incluyendo sugerencias aplicables desde el editor.
+- Modo de entrenamiento adaptativo con coach flotante, progreso persistente y ejemplos insertables para aprender Markdown paso a paso.
+- Base opcional de CodeMirror 6 como motor alternativo del editor, manteniendo el editor clásico como default.
+- Scripts operativos para smoke testing web con Playwright y revisión de PDF.
+
+### Cambiado
+
+- La exportación PDF usa el Markdown fuente actual como verdad única y genera HTML fresco justo antes de imprimir.
+- La exportación nativa de Tauri prioriza impresión HTML a PDF con texto real y deja el fallback rasterizado sólo para navegador.
+- El flujo de abrir, guardar y exportar ahora tiene fallback web coherente cuando la app no corre dentro de Tauri.
+- La preview, la exportación y el diagnóstico comparten mejor el mismo estado actual del documento para evitar desfases.
+- El tooltip pedagógico ahora puede aplicar correcciones seguras directamente para algunas reglas de `remark-lint`, como salto de línea final y espacios sobrantes al final de línea.
+
+### Corregido
+
+- Corrección de truncamiento en exportaciones disparadas inmediatamente después de editar.
+- Resolución correcta de referencias, footnotes y emoji en preview y exportación.
+- Apertura segura de enlaces externos y navegación por anclas internas sin romper el shell de la app.
+- Recuperación de foco, selección y formato contextual en el editor tras aplicar acciones rápidas.
+- Mejoras de estabilidad en el menú contextual, accesibilidad del tooltip y persistencia del motor de edición.
+
 ## [1.0.0] - 2026-02-27
 
 ### Añadido

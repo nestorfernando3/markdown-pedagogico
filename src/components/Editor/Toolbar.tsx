@@ -1,3 +1,4 @@
+import type { EditorEngine } from './EditorWorkspace';
 import React from 'react';
 
 interface ToolbarProps {
@@ -12,6 +13,10 @@ interface ToolbarProps {
   lastExportStatus: 'idle' | 'success' | 'error';
   isZenMode: boolean;
   onToggleZenMode: () => void;
+  isTrainingMode: boolean;
+  onToggleTrainingMode: () => void;
+  editorEngine: EditorEngine;
+  onToggleEditorEngine: () => void;
   showReferencePanel: boolean;
   onToggleReferencePanel: () => void;
   showDiagnosticsPanel: boolean;
@@ -56,6 +61,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   lastExportStatus,
   isZenMode,
   onToggleZenMode,
+  isTrainingMode,
+  onToggleTrainingMode,
+  editorEngine,
+  onToggleEditorEngine,
   showReferencePanel,
   onToggleReferencePanel,
   showDiagnosticsPanel,
@@ -131,6 +140,34 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           aria-label="Alternar modo zen"
         >
           {isZenMode ? 'Salir Zen' : 'Modo Zen'}
+        </button>
+
+        <button
+          type="button"
+          onClick={onToggleTrainingMode}
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            isTrainingMode
+              ? 'border border-indigo-500/40 bg-indigo-500/20 text-indigo-700 dark:bg-indigo-500/30 dark:text-indigo-200'
+              : 'bg-white/60 text-slate-700 hover:bg-white/80 dark:bg-black/20 dark:text-slate-200 dark:hover:bg-black/30'
+          }`}
+          title={isTrainingMode ? 'Desactivar training mode' : 'Activar training mode'}
+          aria-label={isTrainingMode ? 'Desactivar training mode' : 'Activar training mode'}
+        >
+          Training
+        </button>
+
+        <button
+          type="button"
+          onClick={onToggleEditorEngine}
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            editorEngine === 'codemirror'
+              ? 'border border-indigo-500/40 bg-indigo-500/20 text-indigo-700 dark:bg-indigo-500/30 dark:text-indigo-200'
+              : 'bg-white/60 text-slate-700 hover:bg-white/80 dark:bg-black/20 dark:text-slate-200 dark:hover:bg-black/30'
+          }`}
+          title={editorEngine === 'codemirror' ? 'Volver al editor clásico' : 'Activar editor CodeMirror'}
+          aria-label={editorEngine === 'codemirror' ? 'Volver al editor clásico' : 'Activar editor CodeMirror'}
+        >
+          {editorEngine === 'codemirror' ? 'Clásico' : 'CodeMirror'}
         </button>
 
         <button

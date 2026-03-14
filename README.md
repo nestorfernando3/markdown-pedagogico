@@ -27,6 +27,7 @@ Construido con **React 19 + Tauri v1 + TypeScript + Tailwind CSS v4**.
 
 - Vista dividida: escritura Markdown a la izquierda, renderizado HTML en vivo a la derecha.
 - Barra de formato contextual (bold, italic, encabezado, lista) al seleccionar texto.
+- `Training mode` adaptativo con coach flotante para aprender Markdown paso a paso.
 - **Modo Zen** para escritura sin distracciones.
 - **Panel de referencia** para texto e imágenes de comparación.
 - Autosave de borrador en `localStorage` con restauración automática.
@@ -34,7 +35,7 @@ Construido con **React 19 + Tauri v1 + TypeScript + Tailwind CSS v4**.
 ### Exportación
 
 - Guardar como `.md` vía comando nativo Rust.
-- Exportar a **PDF multipágina** con tipografía estilizada (html2canvas + jsPDF → bytes vía Rust).
+- Exportar a **PDF multipágina con texto real** vía impresión HTML nativa en Tauri, con fallback rasterizado sólo en navegador.
 
 ## Requisitos
 
@@ -88,7 +89,10 @@ npm run check:types        # Type-check TypeScript
 npm run check:rust         # Compilación Rust (Tauri)
 npm run check:a11y         # Auditoría automatizada axe-core del Editor
 npm run check:tests        # Suite completa Vitest
+npm run check:smoke:web    # Smoke rápido con Playwright CLI (requiere app corriendo)
+npm run check:smoke:training  # Training mode + export PDF en navegador
 npm run check:all          # Ejecuta todos los gates locales
+npm run review:pdf -- /ruta/al/documento.pdf
 ```
 
 ### Quality Gates en CI
@@ -117,7 +121,7 @@ src/
 │   ├── PedagogicalOverlay.tsx       # Markers y resaltado por severidad
 │   └── TooltipContextual.tsx        # Tooltip de formato y pedagogía
 ├── hooks/
-│   ├── useExportPdf.ts              # Exportación PDF
+│   ├── useExportPdf.ts              # Exportación PDF desde Markdown fuente actual
 │   ├── useFileOperations.ts         # Ciclo open/save/saveAs/isDirty
 │   ├── useKeyboardShortcuts.ts      # Atajos globales del editor
 │   ├── useTooltipState.ts           # Estado de tooltip
@@ -134,7 +138,7 @@ src/
     └── pedagogicalRules.ts          # Motor de reglas pedagógicas
 
 src-tauri/
-├── src/main.rs                      # Comandos Tauri (export_document, export_pdf_bytes)
+├── src/main.rs                      # Comandos Tauri (export_document, export_pdf_html, fallback bytes)
 ├── Cargo.toml                       # Dependencias Rust
 └── tauri.conf.json                  # Config ventana, permisos FS, CSP
 ```
@@ -144,8 +148,9 @@ src-tauri/
 - Autosave de borrador activo por defecto (debounce 180ms).
 - Recuperación automática de borrador al reabrir la app.
 - Overlay pedagógico virtualizado por warnings (no renderiza por cada línea del documento).
-- Pipeline PDF aísla estilos para evitar fallos de parseo con `oklch` (Tailwind v4).
-- Benchmark automatizado del parser: `p95(parseMarkdown) < 300ms` en documento mediano.
+- Pipeline PDF genera HTML fresco desde el Markdown actual antes de exportar.
+- Exportación nativa usa impresión HTML en Tauri; el modo rasterizado queda como compatibilidad web.
+- Benchmark automatizado del parser: `p95(parseMarkdown) < 400ms` en documento mediano.
 - Gate automatizado de accesibilidad con `axe-core` sobre shell principal, paneles y tooltips del editor.
 - Puerto Vite fijo (`5173`, `strictPort`) para evitar desincronización con Tauri.
 - `transparent: false` en ventana para evitar pantalla invisible en macOS.
@@ -156,6 +161,40 @@ src-tauri/
 - **Pull requests:** mejoras en UX, reglas pedagógicas, testing, accesibilidad y exportación PDF tienen especial prioridad.
 - **Preguntas de uso o adopción:** consulta [SUPPORT.md](./SUPPORT.md).
 - **Seguridad:** reporta hallazgos de seguridad con discreción siguiendo [SECURITY.md](./SECURITY.md).
+
+## Fixture de aceptación
+
+- Fixture canónico para preview y PDF: [`src/test/fixtures/fullMarkdown.ts`](./src/test/fixtures/fullMarkdown.ts)
+- Cubre TOC, referencias, footnotes, emoji shortcodes, KaTeX, Mermaid, código, admonitions y salto de página.
+
+## QA con Skills
+
+### Playwright
+
+```bash
+export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+export PWCLI="$CODEX_HOME/skills/playwright/scripts/playwright_cli.sh"
+
+"$PWCLI" open http://localhost:5173 --headed
+"$PWCLI" snapshot
+```
+
+O usar el wrapper del repo, que guarda log y snapshot reutilizable en `output/playwright/`:
+
+```bash
+npm run check:smoke:web
+npm run check:smoke:training
+```
+
+Usar esta rutina para smoke tests de edición larga, export inmediata, preview, training mode y alternancia entre `legacy` y `CodeMirror`.
+
+### PDF
+
+```bash
+npm run review:pdf -- /ruta/al/documento.pdf
+```
+
+El script extrae texto y renderiza páginas PNG en `tmp/pdfs/` para validar que el PDF no quedó rasterizado y que el documento completo llegó a exportación.
 
 ## Licencia
 

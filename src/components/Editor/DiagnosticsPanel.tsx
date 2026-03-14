@@ -21,6 +21,13 @@ const CATEGORY_LABEL: Record<PedagogicalCategory, string> = {
   style: 'Estilo',
   clarity: 'Claridad',
   syntax: 'Sintaxis',
+  orthography: 'Ortografía',
+};
+
+const SOURCE_LABEL: Record<NonNullable<PedagogicalWarning['source']>, string> = {
+  pedagogical: 'Editor',
+  'remark-lint': 'remark-lint',
+  nspell: 'nspell',
 };
 
 export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
@@ -123,6 +130,10 @@ export const DiagnosticsPanel: React.FC<DiagnosticsPanelProps> = ({
                             Línea {warning.line} · {warning.severity}
                           </div>
                           <div className="text-xs text-slate-600 dark:text-slate-300">{warning.message}</div>
+                          <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                            <span>{SOURCE_LABEL[warning.source ?? 'pedagogical']}</span>
+                            {warning.suggestion && <span>Sugerencia: {warning.suggestion}</span>}
+                          </div>
                         </button>
                       </li>
                     ))}

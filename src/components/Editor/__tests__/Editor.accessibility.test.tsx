@@ -1,15 +1,24 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import remarkDeflist from 'remark-deflist';
+import remarkFrontmatter from 'remark-frontmatter';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import remarkParse from 'remark-parse';
+import { unified } from 'unified';
 import { runAxe, formatViolations } from '../../../test/axe';
 import { Editor } from '../Editor';
 
-const { openDialogMock, saveDialogMock, readTextFileMock, invokeMock, parseMarkdownMock } = vi.hoisted(() => ({
+const { openDialogMock, saveDialogMock, readTextFileMock, invokeMock, parseMarkdownMock, renderMarkdownHtmlMock } = vi.hoisted(
+  () => ({
   openDialogMock: vi.fn(),
   saveDialogMock: vi.fn(),
   readTextFileMock: vi.fn(),
   invokeMock: vi.fn(),
   parseMarkdownMock: vi.fn(),
-}));
+    renderMarkdownHtmlMock: vi.fn(),
+  })
+);
 
 vi.mock('@tauri-apps/api/dialog', () => ({
   open: openDialogMock,
@@ -26,6 +35,7 @@ vi.mock('@tauri-apps/api/tauri', () => ({
 
 vi.mock('../../../utils/markdownParser', () => ({
   parseMarkdown: parseMarkdownMock,
+  renderMarkdownHtml: renderMarkdownHtmlMock,
 }));
 
 const WARNING_TOKEN = 'siempre';
@@ -43,12 +53,19 @@ function lineAndColumn(text: string, offset: number): { line: number; column: nu
 }
 
 function buildParseResult(text: string) {
+  const ast = unified()
+    .use(remarkParse)
+    .use(remarkFrontmatter, ['yaml', 'toml'])
+    .use(remarkGfm, { singleTilde: false })
+    .use(remarkDeflist)
+    .use(remarkMath)
+    .parse(text);
   const offset = text.indexOf(WARNING_TOKEN);
 
   if (offset === -1) {
     return {
       html: text ? `<p>${text}</p>` : '',
-      ast: { type: 'root', children: [] },
+      ast,
       warnings: [],
     };
   }
@@ -58,7 +75,7 @@ function buildParseResult(text: string) {
 
   return {
     html: `<p>${text}</p>`,
-    ast: { type: 'root', children: [] },
+    ast,
     warnings: [
       {
         id: `clarity-absolute-claims:${offset}:${length}`,
@@ -97,6 +114,8 @@ describe('Editor accessibility', () => {
 
     parseMarkdownMock.mockReset();
     parseMarkdownMock.mockImplementation(async (text: string) => buildParseResult(text));
+    renderMarkdownHtmlMock.mockReset();
+    renderMarkdownHtmlMock.mockImplementation(async (text: string) => (text ? `<p>${text}</p>` : ''));
 
     openDialogMock.mockReset();
     saveDialogMock.mockReset();
@@ -110,6 +129,7 @@ describe('Editor accessibility', () => {
 
     vi.spyOn(window, 'alert').mockImplementation(() => undefined);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.stubGlobal('__TAURI_IPC__', vi.fn());
     vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
       callback(0);
       return 1;
@@ -153,6 +173,7 @@ describe('Editor accessibility', () => {
         selectionEnd: textarea.value.length,
       },
     });
+    fireEvent.mouseUp(textarea, { clientX: 280, clientY: 220 });
 
     expect(await screen.findByText('Formato Markdown')).toBeInTheDocument();
     await expectNoViolations(baseElement);
@@ -172,6 +193,16 @@ describe('Editor accessibility', () => {
     );
 
     expect(await screen.findByRole('button', { name: 'Ignorar en sesión' })).toBeInTheDocument();
+    await expectNoViolations(baseElement);
+  });
+
+  it('has no axe violations with the training coach visible', async () => {
+    const { baseElement } = render(<Editor />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Activar training mode' }));
+    await flushParserCycle();
+
+    expect(await screen.findByText('Training mode')).toBeInTheDocument();
     await expectNoViolations(baseElement);
   });
 });

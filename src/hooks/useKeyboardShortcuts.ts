@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
 import type { RefObject } from 'react';
+import type { EditorHandle } from '../components/Editor/editorHandle';
 
 interface UseKeyboardShortcutsOptions {
-  editorRef: RefObject<HTMLTextAreaElement | null>;
+  editorRef: RefObject<EditorHandle | null>;
   onBold: () => void;
   onItalic: () => void;
+  onOpen: () => void;
   onSave: () => void;
   onExportPdf: () => void;
 }
@@ -13,6 +15,7 @@ export function useKeyboardShortcuts({
   editorRef,
   onBold,
   onItalic,
+  onOpen,
   onSave,
   onExportPdf,
 }: UseKeyboardShortcutsOptions): void {
@@ -24,7 +27,7 @@ export function useKeyboardShortcuts({
       }
 
       const key = event.key.toLowerCase();
-      const isEditorFocused = document.activeElement === editorRef.current;
+      const isEditorFocused = editorRef.current?.isFocused() ?? false;
 
       if (key === 'b' && isEditorFocused) {
         event.preventDefault();
@@ -35,6 +38,12 @@ export function useKeyboardShortcuts({
       if (key === 'i' && isEditorFocused) {
         event.preventDefault();
         onItalic();
+        return;
+      }
+
+      if (key === 'o') {
+        event.preventDefault();
+        onOpen();
         return;
       }
 
@@ -52,5 +61,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [editorRef, onBold, onExportPdf, onItalic, onSave]);
+  }, [editorRef, onBold, onExportPdf, onItalic, onOpen, onSave]);
 }

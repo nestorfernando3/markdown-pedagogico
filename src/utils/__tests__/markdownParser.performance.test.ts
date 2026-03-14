@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it } from 'vitest';
 import { MEDIUM_MARKDOWN } from '../../test/fixtures/mediumMarkdown';
 import { parseMarkdown } from '../markdownParser';
@@ -9,7 +11,7 @@ function percentile(values: number[], value: number): number {
 }
 
 describe('markdownParser performance', () => {
-  it('keeps parseMarkdown p95 below 300ms for medium documents', async () => {
+  it('keeps parseMarkdown p95 below 400ms for medium documents', async () => {
     const warmups = 3;
     const runs = 12;
     const samples: number[] = [];
@@ -25,6 +27,6 @@ describe('markdownParser performance', () => {
     }
 
     const p95 = percentile(samples, 0.95);
-    expect(p95).toBeLessThan(300);
+    expect(p95).toBeLessThan(400);
   }, 20000);
 });

@@ -1,10 +1,20 @@
 import React from 'react';
 import type { RefObject } from 'react';
 import type { TooltipState } from '../../hooks/useTooltipState';
+import { enhanceCodeBlocks } from '../../utils/codeBlockUi';
+import { isExternalResourceHref, openExternalResource } from '../../utils/externalLinks';
 import type { PedagogicalWarning } from '../../utils/markdownParser';
+import { getPreferredMermaidTheme, renderMermaidDiagrams } from '../../utils/mermaidRenderer';
+import type { EditorHandle } from './editorHandle';
+import { LegacyTextareaEditor } from './LegacyTextareaEditor';
+import { MarkdownCodeMirror } from './MarkdownCodeMirror';
 import { PedagogicalOverlay } from './PedagogicalOverlay';
 import { ReferencePanel } from './ReferencePanel';
+import { TrainingCoach } from './TrainingCoach';
 import { TooltipContextual, type MarkdownAction } from './TooltipContextual';
+import type { TrainingState } from '../../hooks/editor/useTrainingMode';
+
+export type EditorEngine = 'legacy' | 'codemirror';
 
 const SHELL_LAYOUT = {
   both: 'grid-cols-1 2xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)_minmax(300px,340px)]',
@@ -17,8 +27,9 @@ interface EditorWorkspaceProps {
   content: string;
   htmlPreview: string;
   lineNumbers: number[];
-  editorRef: RefObject<HTMLTextAreaElement | null>;
+  editorRef: RefObject<EditorHandle | null>;
   editorScrollTop: number;
+  editorEngine: EditorEngine;
   isZenMode: boolean;
   showReferencePanel: boolean;
   showDiagnosticsPanel: boolean;
@@ -33,16 +44,21 @@ interface EditorWorkspaceProps {
   onReferenceImageDataUrlChange: (next: string | null) => void;
   onEditorChange: (nextValue: string, selectionStart: number) => void;
   onEditorScroll: (scrollTop: number) => void;
-  onEditorSelect: () => void;
-  onEditorClick: (selectionStart: number, selectionEnd: number) => void;
-  onEditorKeyUp: (selectionStart: number) => void;
-  onEditorTab: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onEditorSelect: (selectionStart: number, selectionEnd: number, nextValue: string) => void;
+  onEditorPointerUp: (selectionStart: number, selectionEnd: number, anchorPoint: { x: number; y: number }) => void;
+  onEditorKeyUp: (selectionStart: number, selectionEnd: number) => void;
+  onEditorTab: (selectionStart: number, selectionEnd: number, shiftKey: boolean) => boolean;
   onToggleWarning: (warning: PedagogicalWarning | null, markerRect?: DOMRect, trigger?: HTMLElement) => void;
   onFormatAction: (action: MarkdownAction) => void;
   onFixAction: () => void;
   onIgnoreWarning: (warningId: string) => void;
   onTooltipClose: () => void;
   diagnosticsPanel?: React.ReactNode;
+  trainingState: TrainingState;
+  onTrainingInsertExample: () => void;
+  onTrainingSkipStep: () => void;
+  onTrainingClose: () => void;
+  onTrainingToggleCollapsed: () => void;
 }
 
 export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
@@ -51,6 +67,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   lineNumbers,
   editorRef,
   editorScrollTop,
+  editorEngine,
   isZenMode,
   showReferencePanel,
   showDiagnosticsPanel,
@@ -66,7 +83,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   onEditorChange,
   onEditorScroll,
   onEditorSelect,
-  onEditorClick,
+  onEditorPointerUp,
   onEditorKeyUp,
   onEditorTab,
   onToggleWarning,
@@ -75,7 +92,13 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   onIgnoreWarning,
   onTooltipClose,
   diagnosticsPanel,
+  trainingState,
+  onTrainingInsertExample,
+  onTrainingSkipStep,
+  onTrainingClose,
+  onTrainingToggleCollapsed,
 }) => {
+  const previewContentRef = React.useRef<HTMLDivElement>(null);
   const layoutClass = showReferencePanel
     ? showDiagnosticsPanel
       ? SHELL_LAYOUT.both
@@ -83,6 +106,67 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     : showDiagnosticsPanel
       ? SHELL_LAYOUT.diagnostics
       : SHELL_LAYOUT.none;
+
+  React.useLayoutEffect(() => {
+    if (!previewContentRef.current || htmlPreview.trim() === '') {
+      return;
+    }
+
+    let cancelled = false;
+    const previewNode = previewContentRef.current;
+
+    void (async () => {
+      if (cancelled) {
+        return;
+      }
+
+      await renderMermaidDiagrams(previewNode, getPreferredMermaidTheme());
+      if (cancelled) {
+        return;
+      }
+
+      enhanceCodeBlocks(previewNode);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [htmlPreview]);
+
+  const handlePreviewClick = React.useCallback(async (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const link = target.closest('a');
+    if (!link) {
+      return;
+    }
+
+    const href = link.getAttribute('href');
+    if (!href) {
+      return;
+    }
+
+    if (href.startsWith('#')) {
+      event.preventDefault();
+      const targetId = decodeURIComponent(href.slice(1));
+      const previewRoot = previewContentRef.current;
+      const destination = previewRoot?.ownerDocument.getElementById(targetId);
+      destination?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      return;
+    }
+
+    if (!isExternalResourceHref(href)) {
+      return;
+    }
+
+    event.preventDefault();
+    await openExternalResource(href);
+  }, []);
+
+  const showTrainingHighlight = trainingState.active && !trainingState.collapsed && !trainingState.isComplete;
 
   return (
     <main className={`flex-1 grid pt-24 pb-14 px-8 gap-8 max-w-[1800px] mx-auto w-full ${layoutClass}`}>
@@ -95,13 +179,24 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
         />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+      <div className="relative grid grid-cols-1 md:grid-cols-2 gap-12">
         <section className="relative flex flex-col group" aria-labelledby="editor-section-title">
           <h2 id="editor-section-title" className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">
             Escritura (Markdown)
           </h2>
 
-          <div className="relative flex-1 bg-white/50 dark:bg-[#1a1c23]/40 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] backdrop-blur-xl border border-white/60 dark:border-white/5 focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all group-hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)] z-10 overflow-hidden">
+          <div
+            className={`relative flex-1 bg-white/50 dark:bg-[#1a1c23]/40 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.04)] backdrop-blur-xl border border-white/60 dark:border-white/5 focus-within:ring-2 focus-within:ring-indigo-500/30 transition-all group-hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)] z-10 overflow-hidden ${
+              showTrainingHighlight && trainingState.highlightTarget === 'editor'
+                ? 'ring-2 ring-indigo-500/30 shadow-[0_12px_40px_rgba(79,70,229,0.14)]'
+                : ''
+            }`}
+          >
+            {showTrainingHighlight && trainingState.highlightTarget === 'editor' ? (
+              <div className="pointer-events-none absolute right-4 top-4 z-30 rounded-full bg-indigo-500/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-indigo-700 dark:text-indigo-200">
+                Paso guiado activo
+              </div>
+            ) : null}
             <div
               aria-hidden="true"
               className="absolute inset-y-0 left-0 w-14 border-r border-slate-200/60 dark:border-slate-700/60 bg-white/40 dark:bg-black/20 pointer-events-none z-20 overflow-hidden"
@@ -118,21 +213,29 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
               </div>
             </div>
 
-            <textarea
-              ref={editorRef}
-              value={content}
-              onChange={(event) => onEditorChange(event.target.value, event.target.selectionStart)}
-              onScroll={(event) => onEditorScroll(event.currentTarget.scrollTop)}
-              onSelect={onEditorSelect}
-              onClick={(event) => onEditorClick(event.currentTarget.selectionStart, event.currentTarget.selectionEnd)}
-              onKeyDown={onEditorTab}
-              onKeyUp={(event) => onEditorKeyUp(event.currentTarget.selectionStart)}
-              className="absolute inset-0 w-full h-full bg-transparent resize-none outline-none text-lg text-slate-800 dark:text-slate-200 font-mono leading-7 py-8 pr-8 pl-[4.5rem] rounded-3xl dark:caret-indigo-400 caret-indigo-600 z-10"
-              placeholder="Escribe tu idea aquí usando Markdown..."
-              spellCheck={false}
-              aria-label="Editor de contenido Markdown"
-              aria-labelledby="editor-section-title"
-            />
+            {editorEngine === 'codemirror' ? (
+              <MarkdownCodeMirror
+                ref={editorRef}
+                content={content}
+                onChange={onEditorChange}
+                onScroll={onEditorScroll}
+                onSelect={onEditorSelect}
+                onPointerUp={onEditorPointerUp}
+                onKeyUp={onEditorKeyUp}
+                onTabIndentation={onEditorTab}
+              />
+            ) : (
+              <LegacyTextareaEditor
+                ref={editorRef}
+                content={content}
+                onChange={onEditorChange}
+                onScroll={onEditorScroll}
+                onSelect={onEditorSelect}
+                onPointerUp={onEditorPointerUp}
+                onKeyUp={onEditorKeyUp}
+                onTabIndentation={onEditorTab}
+              />
+            )}
 
             <PedagogicalOverlay
               warnings={visibleWarnings}
@@ -163,16 +266,30 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           <h2 id="preview-section-title" className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">
             Vista Previa Real
           </h2>
-          <div className="flex-1 bg-white/50 dark:bg-black/10 rounded-3xl p-8 shadow-[0_4px_30px_rgba(0,0,0,0.02)] border border-slate-100 dark:border-slate-800/50 overflow-auto prose prose-slate dark:prose-invert prose-lg max-w-none backdrop-blur-sm transition-all selection:bg-indigo-100 dark:selection:bg-indigo-900">
+          <div
+            className={`flex-1 bg-white/50 dark:bg-black/10 rounded-3xl p-8 shadow-[0_4px_30px_rgba(0,0,0,0.02)] border border-slate-100 dark:border-slate-800/50 overflow-auto prose prose-slate dark:prose-invert prose-lg max-w-none backdrop-blur-sm transition-all selection:bg-indigo-100 dark:selection:bg-indigo-900 ${
+              showTrainingHighlight && trainingState.highlightTarget === 'preview' ? 'ring-2 ring-indigo-500/30' : ''
+            }`}
+          >
             {content.trim() === '' ? (
               <p className="text-slate-400 italic font-light">
                 Comienza a escribir a la izquierda y el documento se renderizará automáticamente.
               </p>
             ) : (
-              <div dangerouslySetInnerHTML={{ __html: htmlPreview }} />
+              <div ref={previewContentRef} onClick={handlePreviewClick} dangerouslySetInnerHTML={{ __html: htmlPreview }} />
             )}
           </div>
         </section>
+
+        <div className="pointer-events-none absolute bottom-4 right-0 z-30 w-full md:max-w-sm md:right-4">
+          <TrainingCoach
+            trainingState={trainingState}
+            onInsertExample={onTrainingInsertExample}
+            onSkipStep={onTrainingSkipStep}
+            onClose={onTrainingClose}
+            onToggleCollapsed={onTrainingToggleCollapsed}
+          />
+        </div>
       </div>
 
       {showDiagnosticsPanel && diagnosticsPanel}

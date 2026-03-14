@@ -6,6 +6,7 @@ import {
   countDocumentWords,
   type DiagnosticSnapshot,
 } from '../../utils/pedagogicalRules';
+import { buildTrainingSignals, type TrainingSignals } from '../../utils/trainingMode';
 
 const DRAFT_STORAGE_KEY = 'markdown-pedagogico:draft';
 const DRAFT_DEBOUNCE_MS = 180;
@@ -25,6 +26,7 @@ export interface UseEditorDocumentResult {
   ast: Root | null;
   warnings: PedagogicalWarning[];
   diagnosticSnapshot: DiagnosticSnapshot;
+  trainingSignals: TrainingSignals;
   words: number;
   characters: number;
   readingMinutes: number;
@@ -115,6 +117,8 @@ export function useEditorDocument(): UseEditorDocumentResult {
     return Array.from({ length: lineCount }, (_, index) => index + 1);
   }, [content]);
 
+  const trainingSignals = useMemo(() => buildTrainingSignals(content, ast, warnings), [ast, content, warnings]);
+
   return {
     content,
     setContent,
@@ -122,6 +126,7 @@ export function useEditorDocument(): UseEditorDocumentResult {
     ast,
     warnings,
     diagnosticSnapshot,
+    trainingSignals,
     words,
     characters,
     readingMinutes,

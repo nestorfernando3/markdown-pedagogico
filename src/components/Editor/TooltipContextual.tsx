@@ -184,6 +184,13 @@ const CATEGORY_LABEL: Record<PedagogicalWarning['category'], string> = {
   style: 'Estilo',
   clarity: 'Claridad',
   syntax: 'Sintaxis',
+  orthography: 'Ortografía',
+};
+
+const SOURCE_LABEL: Record<NonNullable<PedagogicalWarning['source']>, string> = {
+  pedagogical: 'Editor',
+  'remark-lint': 'remark-lint',
+  nspell: 'nspell',
 };
 
 const SEVERITY_BADGE_CLASS: Record<PedagogicalWarning['severity'], string> = {
@@ -247,6 +254,7 @@ export const TooltipContextual: React.FC<TooltipContextualProps> = ({
   }, [estimatedHeight, placeAbove, screenHeight, y]);
 
   const arrowOffset = x - clampedX;
+  const isFormatPanelExpanded = type === 'format' && openGroupId !== null;
   const activeGroup = useMemo(
     () => FORMAT_GROUPS.find((group) => group.id === openGroupId) ?? FORMAT_GROUPS[0],
     [openGroupId]
@@ -272,9 +280,6 @@ export const TooltipContextual: React.FC<TooltipContextualProps> = ({
     }
 
     if (type === 'format') {
-      setOpenGroupId((previous) => previous ?? FORMAT_GROUPS[0].id);
-      const firstTrigger = containerRef.current?.querySelector<HTMLElement>('[data-format-trigger]');
-      firstTrigger?.focus();
       return;
     }
 
@@ -284,6 +289,25 @@ export const TooltipContextual: React.FC<TooltipContextualProps> = ({
       return;
     }
   }, [type, visible]);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    const handlePointerDownOutside = (event: MouseEvent) => {
+      if (containerRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      onClose();
+    };
+
+    document.addEventListener('mousedown', handlePointerDownOutside);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDownOutside);
+    };
+  }, [onClose, visible]);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (type === 'format' && visible) {
@@ -451,21 +475,27 @@ export const TooltipContextual: React.FC<TooltipContextualProps> = ({
       id={type === 'pedagogy' ? tooltipId ?? undefined : undefined}
       role={type === 'pedagogy' ? 'tooltip' : undefined}
       onKeyDown={handleKeyDown}
+      onMouseDown={(event) => {
+        if (type === 'format') {
+          event.preventDefault();
+        }
+      }}
       className={[
         'fixed z-50 flex flex-col gap-2 px-5 py-4',
-        'bg-white/90 dark:bg-[#1a1c23]/90',
-        'backdrop-blur-2xl saturate-150',
-        'border border-white/80 dark:border-white/10',
-        'shadow-[0_12px_40px_0_rgba(15,23,42,0.2)] dark:shadow-[0_12px_40px_0_rgba(0,0,0,0.6)]',
+        'bg-white/72 dark:bg-[#141821]/72',
+        'backdrop-blur-xl saturate-150',
+        'border border-white/70 dark:border-white/12',
+        'ring-1 ring-slate-200/60 dark:ring-white/6',
+        'shadow-[0_18px_48px_0_rgba(15,23,42,0.18)] dark:shadow-[0_18px_48px_0_rgba(0,0,0,0.5)]',
         'rounded-2xl transition-all duration-200 ease-out pointer-events-auto opacity-100 scale-100',
       ].join(' ')}
       style={{
         top: clampedY,
         left: clampedX,
         transform: 'translateX(-50%)',
-        width: type === 'format' ? 'min(680px, calc(100vw - 24px))' : undefined,
-        maxHeight: type === 'format' ? 'min(78vh, 620px)' : undefined,
-        overflowY: type === 'format' ? 'auto' : undefined,
+        width: type === 'format' ? (isFormatPanelExpanded ? 'min(520px, calc(100vw - 24px))' : 'min(460px, calc(100vw - 24px))') : undefined,
+        maxHeight: isFormatPanelExpanded ? 'min(78vh, 620px)' : undefined,
+        overflowY: isFormatPanelExpanded ? 'auto' : undefined,
       }}
     >
       {type === 'format' && (
@@ -541,6 +571,12 @@ export const TooltipContextual: React.FC<TooltipContextualProps> = ({
               );
             })}
           </div>
+
+          {!openGroupId && (
+            <div className="mt-3 text-[11px] text-slate-500 dark:text-slate-300">
+              Selecciona una categoria para aplicar formato sin abrir un panel grande por defecto.
+            </div>
+          )}
 
           {openGroupId && (
             <div
@@ -619,11 +655,30 @@ export const TooltipContextual: React.FC<TooltipContextualProps> = ({
               {CATEGORY_LABEL[warning.category]}
             </span>
             <span className={`rounded-md px-2 py-1 ${SEVERITY_BADGE_CLASS[warning.severity]}`}>{warning.severity}</span>
+            <span className="rounded-md px-2 py-1 bg-indigo-500/10 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200">
+              {SOURCE_LABEL[warning.source ?? 'pedagogical']}
+            </span>
           </div>
 
           <p id={`warning-${warning.id}`} className="text-xs text-slate-600 dark:text-slate-300">
             {warning.message}
           </p>
+
+          {warning.suggestion && (!warning.suggestions || warning.suggestions.length === 0) && (
+            <div className="rounded-lg border border-indigo-200/70 bg-indigo-500/5 px-3 py-2 text-[11px] text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-200">
+              {warning.suggestion}
+            </div>
+          )}
+
+          {warning.suggestions && warning.suggestions.length > 0 && (
+            <div className="flex flex-wrap gap-2 text-[11px] text-slate-500 dark:text-slate-300">
+              {warning.suggestions.slice(0, 3).map((suggestion) => (
+                <span key={suggestion} className="rounded-md border border-slate-200/70 px-2 py-1 dark:border-slate-700/70">
+                  {suggestion}
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-2">
             {warning.replacementConfig && (
@@ -632,7 +687,7 @@ export const TooltipContextual: React.FC<TooltipContextualProps> = ({
                 onClick={onFixAction}
                 className="rounded-lg py-1.5 px-3 bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 dark:bg-indigo-500/30 hover:bg-indigo-500/30 transition-colors text-xs font-semibold"
               >
-                Aplicar sugerencia
+                Aplicar corrección
               </button>
             )}
 

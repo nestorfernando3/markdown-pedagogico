@@ -3,15 +3,18 @@ import type { Point } from 'unist';
 import { visit } from 'unist-util-visit';
 
 export type PedagogicalSeverity = 'info' | 'warning' | 'error';
-export type PedagogicalCategory = 'structure' | 'style' | 'clarity' | 'syntax';
+export type PedagogicalCategory = 'structure' | 'style' | 'clarity' | 'syntax' | 'orthography';
+export type WarningSource = 'pedagogical' | 'remark-lint' | 'nspell';
 
 export interface PedagogicalWarning {
   id: string;
   ruleId: string;
   severity: PedagogicalSeverity;
   category: PedagogicalCategory;
+  source?: WarningSource;
   message: string;
   suggestion?: string;
+  suggestions?: string[];
   line: number;
   column: number;
   offset: number;
@@ -190,6 +193,7 @@ function createWarning(
     ruleId: rule.id,
     severity: rule.severity,
     category: rule.category,
+    source: 'pedagogical',
     message: draft.message,
     suggestion: draft.suggestion,
     line: point.line,

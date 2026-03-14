@@ -30,11 +30,11 @@ export function useTooltipState() {
     }));
   }, []);
 
-  const showFormatTooltip = useCallback((anchorRect: DOMRect) => {
+  const showFormatTooltip = useCallback((anchorPoint: { x: number; y: number }) => {
     setTooltipState({
       visible: true,
-      x: anchorRect.left + anchorRect.width / 2,
-      y: anchorRect.top + 40,
+      x: anchorPoint.x,
+      y: anchorPoint.y,
       type: 'format',
       warning: null,
     });

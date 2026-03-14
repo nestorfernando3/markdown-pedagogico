@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useFileOperations } from '../useFileOperations';
 
 const { openDialogMock, saveDialogMock, readTextFileMock, invokeMock } = vi.hoisted(() => ({
@@ -28,6 +28,11 @@ describe('useFileOperations', () => {
     saveDialogMock.mockReset();
     readTextFileMock.mockReset();
     invokeMock.mockReset();
+    vi.stubGlobal('__TAURI_IPC__', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('opens markdown files and updates current path', async () => {

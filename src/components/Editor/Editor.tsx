@@ -5,9 +5,11 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useTooltipState } from '../../hooks/useTooltipState';
 import { useEditorDocument } from '../../hooks/editor/useEditorDocument';
 import { useEditorInteractions } from '../../hooks/editor/useEditorInteractions';
+import { useTrainingMode } from '../../hooks/editor/useTrainingMode';
 import { useWarningSession } from '../../hooks/editor/useWarningSession';
+import type { EditorHandle } from './editorHandle';
 import { DiagnosticsPanel } from './DiagnosticsPanel';
-import { EditorWorkspace } from './EditorWorkspace';
+import { EditorWorkspace, type EditorEngine } from './EditorWorkspace';
 import { StatusBar } from './StatusBar';
 import { Toolbar } from './Toolbar';
 
@@ -15,14 +17,27 @@ function toTooltipId(warningId: string): string {
   return `pedagogy-tooltip-${warningId.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 }
 
+const EDITOR_ENGINE_STORAGE_KEY = 'markdown-pedagogico:editor-engine';
+
+function readEditorEngine(): EditorEngine {
+  if (typeof window === 'undefined') {
+    return 'legacy';
+  }
+
+  const storedValue = window.localStorage.getItem(EDITOR_ENGINE_STORAGE_KEY);
+  return storedValue === 'codemirror' ? 'codemirror' : 'legacy';
+}
+
 export const Editor: React.FC = () => {
   const [isZenMode, setIsZenMode] = useState(false);
+  const [editorEngine, setEditorEngine] = useState<EditorEngine>(() => readEditorEngine());
   const [showReferencePanel, setShowReferencePanel] = useState(false);
   const [showDiagnosticsPanel, setShowDiagnosticsPanel] = useState(false);
+  const [successfulExportCount, setSuccessfulExportCount] = useState(0);
   const [referenceText, setReferenceText] = useState('');
   const [referenceImageDataUrl, setReferenceImageDataUrl] = useState<string | null>(null);
 
-  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<EditorHandle>(null);
 
   const {
     content,
@@ -30,10 +45,12 @@ export const Editor: React.FC = () => {
     htmlPreview,
     warnings,
     diagnosticSnapshot,
+    ast,
     words,
     characters,
     readingMinutes,
     lineNumbers,
+    trainingSignals,
   } = useEditorDocument();
 
   const { ignoredWarningIds, visibleWarnings, peakWarningCount, newWarningIds, ignoreWarning } = useWarningSession(warnings);
@@ -46,9 +63,10 @@ export const Editor: React.FC = () => {
     onEditorScroll,
     handleEditorChange,
     handleEditorKeyUp,
-    handleEditorClick,
+    handleEditorPointerUp,
     handleSelect,
     handleFormatAction,
+    handleInsertSnippet,
     handleApplyFix,
     handleTabIndentation,
     handleJumpToWarning,
@@ -71,6 +89,9 @@ export const Editor: React.FC = () => {
 
   const { exportPdf, isExporting, lastExportStatus } = useExportPdf();
 
+  const { trainingState, toggleTrainingMode, closeTrainingMode, skipCurrentStep, toggleTrainingCollapsed } =
+    useTrainingMode(content, ast, warnings, editorEngine, successfulExportCount);
+
   const activeWarningId =
     tooltipState.visible && tooltipState.type === 'pedagogy' && tooltipState.warning ? tooltipState.warning.id : null;
 
@@ -80,6 +101,18 @@ export const Editor: React.FC = () => {
     }
     return toTooltipId(activeWarningId);
   }, [activeWarningId]);
+
+  useEffect(() => {
+    window.localStorage.setItem(EDITOR_ENGINE_STORAGE_KEY, editorEngine);
+  }, [editorEngine]);
+
+  useEffect(() => {
+    if (lastExportStatus !== 'success') {
+      return;
+    }
+
+    setSuccessfulExportCount((previous) => previous + 1);
+  }, [lastExportStatus]);
 
   useEffect(() => {
     if (tooltipState.type !== 'pedagogy' || !tooltipState.warning) {
@@ -96,11 +129,14 @@ export const Editor: React.FC = () => {
     editorRef,
     onBold: () => handleFormatAction('bold'),
     onItalic: () => handleFormatAction('italic'),
+    onOpen: () => {
+      void openMarkdown();
+    },
     onSave: () => {
       void saveMarkdown(content);
     },
     onExportPdf: () => {
-      void exportPdf(htmlPreview, content || 'Sin contenido');
+      void exportPdf(content, content || 'Sin contenido');
     },
   });
 
@@ -131,12 +167,35 @@ export const Editor: React.FC = () => {
   };
 
   const handleExport = () => {
-    void exportPdf(htmlPreview, content || 'Sin contenido');
+    void exportPdf(content, content || 'Sin contenido');
   };
 
   const handleIgnoreWarning = (warningId: string) => {
     ignoreWarning(warningId);
     handleTooltipClose();
+  };
+
+  const handleTrainingInsertExample = () => {
+    const exampleAction = trainingState.currentStep?.exampleAction;
+    if (!exampleAction) {
+      return;
+    }
+
+    if (exampleAction.kind === 'format') {
+      handleFormatAction(exampleAction.action);
+      return;
+    }
+
+    if (exampleAction.kind === 'snippet') {
+      handleInsertSnippet(exampleAction.snippet, {
+        placement: exampleAction.placement,
+        selectionStartOffset: exampleAction.selectionStartOffset,
+        selectionEndOffset: exampleAction.selectionEndOffset,
+      });
+      return;
+    }
+
+    void exportPdf(content, content || 'Sin contenido');
   };
 
   return (
@@ -153,6 +212,12 @@ export const Editor: React.FC = () => {
         lastExportStatus={lastExportStatus}
         isZenMode={isZenMode}
         onToggleZenMode={() => setIsZenMode((previous) => !previous)}
+        isTrainingMode={trainingState.active}
+        onToggleTrainingMode={toggleTrainingMode}
+        editorEngine={editorEngine}
+        onToggleEditorEngine={() =>
+          setEditorEngine((previous) => (previous === 'codemirror' ? 'legacy' : 'codemirror'))
+        }
         showReferencePanel={showReferencePanel}
         onToggleReferencePanel={() => setShowReferencePanel((previous) => !previous)}
         showDiagnosticsPanel={showDiagnosticsPanel}
@@ -165,6 +230,7 @@ export const Editor: React.FC = () => {
         lineNumbers={lineNumbers}
         editorRef={editorRef}
         editorScrollTop={editorScrollTop}
+        editorEngine={editorEngine}
         isZenMode={isZenMode}
         showReferencePanel={showReferencePanel}
         showDiagnosticsPanel={showDiagnosticsPanel}
@@ -180,7 +246,7 @@ export const Editor: React.FC = () => {
         onEditorChange={handleEditorChange}
         onEditorScroll={onEditorScroll}
         onEditorSelect={handleSelect}
-        onEditorClick={handleEditorClick}
+        onEditorPointerUp={handleEditorPointerUp}
         onEditorKeyUp={handleEditorKeyUp}
         onEditorTab={handleTabIndentation}
         onToggleWarning={handleToggleWarning}
@@ -188,6 +254,14 @@ export const Editor: React.FC = () => {
         onFixAction={handleApplyFix}
         onIgnoreWarning={handleIgnoreWarning}
         onTooltipClose={handleTooltipClose}
+        trainingState={{
+          ...trainingState,
+          signals: trainingSignals,
+        }}
+        onTrainingInsertExample={handleTrainingInsertExample}
+        onTrainingSkipStep={skipCurrentStep}
+        onTrainingClose={closeTrainingMode}
+        onTrainingToggleCollapsed={toggleTrainingCollapsed}
         diagnosticsPanel={
           <DiagnosticsPanel
             warnings={visibleWarnings}
