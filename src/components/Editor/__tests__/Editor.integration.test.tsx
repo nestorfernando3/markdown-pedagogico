@@ -267,6 +267,62 @@ describe('Editor integration', () => {
     });
   });
 
+  it('applies a pedagogical correction from the tooltip when the warning provides one', async () => {
+    parseMarkdownMock.mockImplementationOnce(async (text: string) => {
+      const ast = unified()
+        .use(remarkParse)
+        .use(remarkFrontmatter, ['yaml', 'toml'])
+        .use(remarkGfm, { singleTilde: false })
+        .use(remarkDeflist)
+        .use(remarkMath)
+        .parse(text);
+
+      return {
+        html: `<p>${text}</p>`,
+        ast,
+        warnings: [
+          {
+            id: 'structure-orphan-heading:0:8',
+            ruleId: 'structure-orphan-heading',
+            severity: 'warning',
+            category: 'structure',
+            source: 'pedagogical',
+            message: 'Encabezado sin contenido intermedio. Agrega desarrollo antes del siguiente título.',
+            suggestion: 'Inserta un párrafo breve entre ambos encabezados para dar contexto.',
+            line: 1,
+            column: 1,
+            offset: 0,
+            length: 8,
+            originalText: '# Titulo',
+            replacementConfig: {
+              startOffset: '# Titulo'.length,
+              endOffset: '# Titulo\n'.length,
+              newText: '\n\nDesarrolla esta idea antes del siguiente título.\n\n',
+            },
+          },
+        ],
+      };
+    });
+
+    render(<Editor />);
+
+    const textarea = screen.getByLabelText('Editor de contenido Markdown') as HTMLTextAreaElement;
+    const content = '# Titulo\n## Subtitulo';
+    fireEvent.change(textarea, { target: { value: content } });
+    await flushParserCycle();
+
+    const marker = screen.getByRole('button', {
+      name: /Advertencia warning en línea/i,
+    });
+
+    fireEvent.click(marker);
+    fireEvent.click(await screen.findByRole('button', { name: 'Aplicar corrección' }));
+
+    await waitFor(() => {
+      expect(textarea.value).toBe('# Titulo\n\nDesarrolla esta idea antes del siguiente título.\n\n## Subtitulo');
+    });
+  });
+
   it('saves with keyboard shortcut without conflicting with editor selection state', async () => {
     render(<Editor />);
 

@@ -110,6 +110,23 @@ La arquitectura modular facilita pruebas y mejora la arquitectura del servicio.`
     expect(ruleIds('# Titulo\n\nContenido\n\n## Subtitulo\n\nContenido')).not.toContain('structure-orphan-heading');
   });
 
+  it('adds an applicable correction for orphan headings', async () => {
+    const markdown = '# Titulo\n## Subtitulo';
+
+    const result = await parseMarkdown(markdown);
+    const warning = result.warnings.find((entry) => entry.ruleId === 'structure-orphan-heading');
+
+    expect(warning).toMatchObject({
+      source: 'pedagogical',
+      suggestion: 'Inserta un párrafo breve entre ambos encabezados para dar contexto.',
+    });
+    expect(warning?.replacementConfig).toEqual({
+      startOffset: '# Titulo'.length,
+      endOffset: '# Titulo\n'.length,
+      newText: '\n\nDesarrolla esta idea antes del siguiente título.\n\n',
+    });
+  });
+
   it('triggers onboarding on very short plain text and not on markdown text', () => {
     expect(ruleIds('hola mundo')).toContain('clarity-onboarding');
     expect(ruleIds('# hola mundo')).not.toContain('clarity-onboarding');

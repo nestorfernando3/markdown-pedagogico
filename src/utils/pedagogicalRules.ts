@@ -587,6 +587,7 @@ const ruleOrphanHeading: PedagogicalRule = {
   severity: 'warning',
   match: (ctx) => {
     const warnings: PedagogicalWarning[] = [];
+    const bridgeParagraph = '\n\nDesarrolla esta idea antes del siguiente título.\n\n';
 
     visit(ctx.ast, (node, index, parent) => {
       if (node.type !== 'heading' || typeof index !== 'number' || !parent || node.position?.start.offset === undefined) {
@@ -603,6 +604,12 @@ const ruleOrphanHeading: PedagogicalRule = {
           startOffset: node.position.start.offset,
           endOffset: node.position.end?.offset ?? node.position.start.offset + 1,
           message: 'Encabezado sin contenido intermedio. Agrega desarrollo antes del siguiente título.',
+          suggestion: 'Inserta un párrafo breve entre ambos encabezados para dar contexto.',
+          replacementConfig: {
+            startOffset: node.position.end?.offset ?? node.position.start.offset + 1,
+            endOffset: nextSibling.position?.start.offset ?? node.position.end?.offset ?? node.position.start.offset + 1,
+            newText: bridgeParagraph,
+          },
         })
       );
     });
