@@ -1,5 +1,9 @@
 # Markdown Pedagógico
 
+<p align="center">
+  <img src="public/logo-markdown-pedagogico.svg" alt="Markdown Pedagógico Logo" width="200" />
+</p>
+
 Editor de escritorio para escritura Markdown con **motor pedagógico basado en AST**, vista previa en vivo y exportación nativa a `.md` y `.pdf`.
 
 Construido con **React 19 + Tauri v1 + TypeScript + Tailwind CSS v4**.
