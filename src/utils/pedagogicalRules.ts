@@ -52,6 +52,10 @@ type WarningDraft = {
 };
 
 const MAX_WARNINGS = 120;
+const lineStartsCache = new WeakMap<RuleContext, number[]>();
+const paragraphNodesCache = new WeakMap<Root, Paragraph[]>();
+const headingNodesCache = new WeakMap<Root, Heading[]>();
+const listNodesCache = new WeakMap<Root, List[]>();
 const STOP_WORDS = new Set([
   'ante',
   'bajo',
@@ -184,7 +188,7 @@ function createWarning(
   const startOffset = Math.max(0, Math.min(draft.startOffset, ctx.fullText.length));
   const rawEndOffset = Math.max(startOffset + 1, draft.endOffset);
   const endOffset = Math.max(startOffset + 1, Math.min(rawEndOffset, ctx.fullText.length));
-  const lineStarts = buildLineStarts(ctx.fullText);
+  const lineStarts = getLineStarts(ctx);
   const point = pointFromOffset(ctx.fullText, lineStarts, startOffset);
   const length = endOffset - startOffset;
 
@@ -206,27 +210,56 @@ function createWarning(
 }
 
 function paragraphNodes(ast: Root): Paragraph[] {
+  const cached = paragraphNodesCache.get(ast);
+  if (cached) {
+    return cached;
+  }
+
   const paragraphs: Paragraph[] = [];
   visit(ast, 'paragraph', (node) => {
     paragraphs.push(node);
   });
+  paragraphNodesCache.set(ast, paragraphs);
   return paragraphs;
 }
 
 function headingNodes(ast: Root): Heading[] {
+  const cached = headingNodesCache.get(ast);
+  if (cached) {
+    return cached;
+  }
+
   const headings: Heading[] = [];
   visit(ast, 'heading', (node) => {
     headings.push(node);
   });
+  headingNodesCache.set(ast, headings);
   return headings;
 }
 
 function listNodes(ast: Root): List[] {
+  const cached = listNodesCache.get(ast);
+  if (cached) {
+    return cached;
+  }
+
   const lists: List[] = [];
   visit(ast, 'list', (node) => {
     lists.push(node);
   });
+  listNodesCache.set(ast, lists);
   return lists;
+}
+
+function getLineStarts(ctx: RuleContext): number[] {
+  const cached = lineStartsCache.get(ctx);
+  if (cached) {
+    return cached;
+  }
+
+  const starts = buildLineStarts(ctx.fullText);
+  lineStartsCache.set(ctx, starts);
+  return starts;
 }
 
 const ruleHeaderMissingSpace: PedagogicalRule = {
