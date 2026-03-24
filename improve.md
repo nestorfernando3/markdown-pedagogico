@@ -6,7 +6,7 @@ exclude: src/utils/__tests__/** scripts/** src/components/** src/hooks/** src-ta
 
 ## Check
 test: npx vitest run src/utils/__tests__/markdownParser.test.ts src/utils/__tests__/markdownParser.performance.test.ts
-test-files: src/utils/__tests__/markdownParser.test.ts src/utils/__tests__/markdownParser.performance.test.ts src/utils/__tests__/markdownParser.autoimprove.test.ts src/test/fixtures/mediumMarkdown.ts
+test-files: src/utils/__tests__/markdownParser.test.ts src/utils/__tests__/markdownParser.performance.test.ts src/utils/__tests__/markdownParser.autoimprove.test.ts src/test/fixtures/mediumMarkdown.ts src/test/fixtures/markdownBenchmarkSet.ts
 run: npx vitest run src/utils/__tests__/markdownParser.autoimprove.test.ts --reporter=verbose
 score: SCORE: ([\\d.]+)
 goal: lower
@@ -29,6 +29,8 @@ Prefer low-risk hot-path improvements such as:
 - caching reusable configuration or processor setup when safe
 - reducing unnecessary tree traversals and object churn
 - keeping sanitization, KaTeX, TOC, and alert handling behavior intact
+
+The benchmark now measures a small representative fixture set, not just one medium document.
 
 Do not modify:
 - test fixtures or benchmark extraction
