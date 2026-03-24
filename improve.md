@@ -18,7 +18,7 @@ timeout: 3m
 budget: 2h
 rounds: 20
 stale: 6
-target: 120
+target: 25
 
 ## Instructions
 
