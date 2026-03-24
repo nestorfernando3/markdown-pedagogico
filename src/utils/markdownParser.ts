@@ -593,15 +593,23 @@ export function analyzePedagogical(text: string): Pick<ParseResult, 'ast' | 'war
   return { ast, warnings };
 }
 
-export async function renderMarkdownHtml(text: string): Promise<string> {
-  const vfile = await htmlProcessor.process(replaceEmojiShortcodes(text));
-  return String(vfile);
+function applyEmojiShortcodesToAst(tree: Root): void {
+  visit(tree, 'text', (node) => {
+    node.value = replaceEmojiShortcodes(node.value);
+  });
+}
+
+export async function renderMarkdownHtml(ast: Root): Promise<string> {
+  const workingTree = structuredClone(ast);
+  applyEmojiShortcodesToAst(workingTree);
+  const hastTree = await htmlProcessor.run(workingTree);
+  return String(htmlProcessor.stringify(hastTree));
 }
 
 export async function parseMarkdown(text: string): Promise<ParseResult> {
   const analysis = analyzePedagogical(text);
   const [html, lintWarnings, spellingWarnings] = await Promise.all([
-    renderMarkdownHtml(text),
+    renderMarkdownHtml(analysis.ast),
     analyzeRemarkLint(text, analysis.ast),
     analyzeSpelling(text, analysis.ast),
   ]);
